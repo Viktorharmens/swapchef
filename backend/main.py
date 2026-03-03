@@ -116,6 +116,55 @@ ALLERGEN_MAP = {
         "alt": "Asafoetida (snufje, geeft vergelijkbare diepte) of bieslook",
         "exceptions": [],
     },
+    # ── EU-allergenen (aanvullend op de 14 verplichte) ────────────────────────
+    "vis": {
+        "triggers": ["vis", "zalm", "tonijn", "makreel", "haring", "kabeljauw",
+                     "forel", "tilapia", "pangasius", "ansjovis", "sardine",
+                     "bot", "zeetong", "schol", "heilbot", "tarbot", "zeebaars",
+                     "baars", "paling", "aal", "spiering", "snoekbaars",
+                     "vissaus", "worcestershiresaus", "anchovy", "anchovypasta"],
+        "alt": "Tofu, jackfruit of bloemkool",
+        "exceptions": [],
+    },
+    "selderij": {
+        "triggers": ["selderij", "bleekselderij", "knolselderij",
+                     "selderijzaad", "selderijzout", "selderijpoeder"],
+        "alt": "Venkel, courgette of pastinaak",
+        "exceptions": [],
+    },
+    "mosterd": {
+        "triggers": ["mosterd", "mosterdzaad", "mosterdsaus", "dijonmosterd",
+                     "dijon", "mosterdpoeder", "mosterdolie", "mosterdkers",
+                     "tafelmosterd", "grove mosterd"],
+        "alt": "Mierikswortel of wasabi (minder intensief)",
+        "exceptions": [],
+    },
+    "sesam": {
+        "triggers": ["sesam", "sesamzaad", "sesamolie", "tahini", "tahin",
+                     "sesampasta", "sesambrood", "gomashio", "halva"],
+        "alt": "Zonnebloempitten of lijnzaad",
+        "exceptions": [],
+    },
+    "weekdieren": {
+        "triggers": ["inktvis", "pijlinktvis", "octopus", "mossel", "mosselen",
+                     "oester", "oesters", "sint-jakobsschelp", "coquille",
+                     "wulk", "alikruik", "slak", "abalone", "venusschelp"],
+        "alt": "Stevige witvis of champignons",
+        "exceptions": [],
+    },
+    "lupine": {
+        "triggers": ["lupine", "lupinebloem", "lupinezaad", "lupinemeel",
+                     "lupinepasta"],
+        "alt": "Kikkererwten of rijstmeel",
+        "exceptions": [],
+    },
+    "sulfiet": {
+        "triggers": ["sulfiet", "sulfieten", "zwaveldioxide", "wijn", "rode wijn",
+                     "witte wijn", "porto", "sherry", "wijnazijn",
+                     "gedroogde abrikozen", "rozijnen", "sultana's", "krenten"],
+        "alt": "Vers alternatief zonder sulfiet (controleer etiket)",
+        "exceptions": ["wijnazijn naturel", "balsamicoazijn"],
+    },
 }
 
 # ── Diet mapping ─────────────────────────────────────────────────────────────
