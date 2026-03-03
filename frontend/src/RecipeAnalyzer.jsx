@@ -207,7 +207,7 @@ export default function RecipeAnalyzer() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-8 w-full rounded-2xl bg-orange-500 px-6 py-4 text-lg font-bold
+            className="group mt-8 w-full rounded-2xl bg-orange-500 px-6 py-4 text-lg font-bold
                        text-white hover:bg-orange-600 active:scale-95
                        disabled:cursor-not-allowed disabled:opacity-60 transition"
           >
@@ -216,7 +216,28 @@ export default function RecipeAnalyzer() {
                 <Spinner /> Ingrediënten swappen…
               </span>
             ) : (
-              "Swap ingrediënten"
+              <span className="relative block overflow-hidden">
+                {/* Spacer */}
+                <span className="invisible block" aria-hidden="true">Swap ingrediënten</span>
+                {/* Huidige tekst: elk woord schuift los omhoog */}
+                <span className="absolute inset-0 flex items-center justify-center gap-2">
+                  <span className="transition-transform duration-500 ease-in-out group-hover:-translate-y-full">
+                    Swap
+                  </span>
+                  <span className="transition-transform duration-500 ease-in-out delay-75 group-hover:-translate-y-full">
+                    ingrediënten
+                  </span>
+                </span>
+                {/* Nieuwe tekst: elk woord schuift los van onder */}
+                <span className="absolute inset-0 flex items-center justify-center gap-2">
+                  <span className="transition-transform duration-500 ease-in-out translate-y-full delay-100 group-hover:translate-y-0">
+                    Ingrediënten
+                  </span>
+                  <span className="transition-transform duration-500 ease-in-out translate-y-full delay-150 group-hover:translate-y-0">
+                    swappen
+                  </span>
+                </span>
+              </span>
             )}
           </button>
         </form>
