@@ -102,7 +102,7 @@ export default function RecipeAnalyzer() {
       {/* Dark overlay for readability */}
       <div className="absolute inset-0 bg-black/40 pointer-events-none" />
 
-      <div className="max-w-2xl relative" style={{ marginLeft: "50px" }}>
+      <div className="max-w-2xl relative mx-auto sm:mx-0 sm:ml-[50px]">
 
         {/* Form card */}
         <form
