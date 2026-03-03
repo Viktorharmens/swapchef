@@ -24,8 +24,11 @@ const DIETS = [
   { id: "vegan",       label: "Vegan",       emoji: "🌱" },
   { id: "keto",        label: "Keto",        emoji: "🥑" },
   { id: "halal",       label: "Halal",       emoji: "☪️" },
+  { id: "koosjer",     label: "Koosjer",     emoji: "✡️" },
   { id: "paleo",       label: "Paleo",       emoji: "🦴" },
+  { id: "whole30",     label: "Whole30",     emoji: "🥩" },
   { id: "fodmap",      label: "FODMAP",      emoji: "🍎" },
+  { id: "suikervrij",  label: "Suikervrij",  emoji: "🚫🍬" },
 ];
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
