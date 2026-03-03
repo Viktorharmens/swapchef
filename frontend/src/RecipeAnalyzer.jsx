@@ -160,11 +160,11 @@ export default function RecipeAnalyzer() {
                     key={id}
                     type="button"
                     onClick={() => toggleAllergen(id)}
-                    className={`inline-flex items-center gap-2 rounded-full border px-4 py-2
-                                text-base font-medium transition select-none
+                    className={`inline-flex items-center gap-2 rounded-full px-4 py-2
+                                text-base font-semibold transition select-none
                                 ${active
-                                  ? "border-orange-400 bg-orange-50 text-orange-700 shadow-sm"
-                                  : "border-gray-200 bg-white text-gray-600 hover:border-orange-300 hover:bg-orange-50"
+                                  ? "border-2 border-orange-500 bg-orange-500 text-white shadow-md scale-105"
+                                  : "border border-gray-200 bg-white text-gray-600 hover:border-orange-400 hover:bg-orange-50"
                                 }`}
                   >
                     <span>{emoji}</span>
@@ -188,11 +188,11 @@ export default function RecipeAnalyzer() {
                     key={id}
                     type="button"
                     onClick={() => toggleDiet(id)}
-                    className={`inline-flex items-center gap-2 rounded-full border px-4 py-2
-                                text-base font-medium transition select-none
+                    className={`inline-flex items-center gap-2 rounded-full px-4 py-2
+                                text-base font-semibold transition select-none
                                 ${active
-                                  ? "border-green-500 bg-green-50 text-green-700 shadow-sm"
-                                  : "border-gray-200 bg-white text-gray-600 hover:border-green-400 hover:bg-green-50"
+                                  ? "border-2 border-green-600 bg-green-600 text-white shadow-md scale-105"
+                                  : "border border-gray-200 bg-white text-gray-600 hover:border-green-500 hover:bg-green-50"
                                 }`}
                   >
                     <span>{emoji}</span>
