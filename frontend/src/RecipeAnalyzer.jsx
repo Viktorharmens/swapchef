@@ -160,11 +160,11 @@ export default function RecipeAnalyzer() {
                     key={id}
                     type="button"
                     onClick={() => toggleAllergen(id)}
-                    className={`inline-flex items-center gap-2 rounded-full border px-4 py-2
-                                text-base font-medium transition select-none
+                    className={`inline-flex items-center gap-2 rounded-full border-2 px-4 py-2
+                                text-base font-semibold transition select-none
                                 ${active
-                                  ? "border-orange-400 bg-orange-50 text-orange-700 shadow-sm"
-                                  : "border-gray-200 bg-white text-gray-600 hover:border-orange-300 hover:bg-orange-50"
+                                  ? "border-orange-500 bg-orange-500 text-white shadow-md"
+                                  : "border-gray-200 bg-white text-gray-600 hover:border-orange-400 hover:bg-orange-50"
                                 }`}
                   >
                     <span>{emoji}</span>
@@ -188,11 +188,11 @@ export default function RecipeAnalyzer() {
                     key={id}
                     type="button"
                     onClick={() => toggleDiet(id)}
-                    className={`inline-flex items-center gap-2 rounded-full border px-4 py-2
-                                text-base font-medium transition select-none
+                    className={`inline-flex items-center gap-2 rounded-full border-2 px-4 py-2
+                                text-base font-semibold transition select-none
                                 ${active
-                                  ? "border-green-500 bg-green-50 text-green-700 shadow-sm"
-                                  : "border-gray-200 bg-white text-gray-600 hover:border-green-400 hover:bg-green-50"
+                                  ? "border-green-600 bg-green-600 text-white shadow-md"
+                                  : "border-gray-200 bg-white text-gray-600 hover:border-green-500 hover:bg-green-50"
                                 }`}
                   >
                     <span>{emoji}</span>
@@ -207,7 +207,7 @@ export default function RecipeAnalyzer() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-8 w-full rounded-2xl bg-orange-500 px-6 py-4 text-lg font-bold
+            className="group mt-8 w-full rounded-2xl bg-orange-500 px-6 py-4 text-lg font-bold
                        text-white hover:bg-orange-600 active:scale-95
                        disabled:cursor-not-allowed disabled:opacity-60 transition"
           >
@@ -216,7 +216,28 @@ export default function RecipeAnalyzer() {
                 <Spinner /> Ingrediënten swappen…
               </span>
             ) : (
-              "Swap ingrediënten"
+              <span className="relative block overflow-hidden">
+                {/* Spacer */}
+                <span className="invisible block" aria-hidden="true">Swap ingrediënten</span>
+                {/* Huidige tekst: elk woord schuift los omhoog */}
+                <span className="absolute inset-0 flex items-center justify-center gap-2">
+                  <span className="transition-transform duration-500 ease-in-out group-hover:-translate-y-full">
+                    Swap
+                  </span>
+                  <span className="transition-transform duration-500 ease-in-out delay-75 group-hover:-translate-y-full">
+                    ingrediënten
+                  </span>
+                </span>
+                {/* Nieuwe tekst: elk woord schuift los van onder */}
+                <span className="absolute inset-0 flex items-center justify-center gap-2">
+                  <span className="transition-transform duration-500 ease-in-out translate-y-full delay-100 group-hover:translate-y-0">
+                    Ingrediënten
+                  </span>
+                  <span className="transition-transform duration-500 ease-in-out translate-y-full delay-150 group-hover:translate-y-0">
+                    swappen
+                  </span>
+                </span>
+              </span>
             )}
           </button>
         </form>
