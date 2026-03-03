@@ -258,6 +258,57 @@ DIET_MAP = {
         "exceptions": ["kokosmelk", "lactosevrij", "harde kaas",
                        "parmezaan", "cheddar"],
     },
+    "suikervrij": {
+        "triggers": ["suiker", "basterdsuiker", "poedersuiker", "rietsuiker",
+                     "bruine suiker", "kristalsuiker", "kandijsuiker",
+                     "kokosbloesemsuiker", "palmsuiker", "druivensuiker",
+                     "honing", "ahornsiroop", "agave", "agavesiroop",
+                     "glucosestroop", "fructosestroop", "maltosestroop",
+                     "invertsuiker", "melasse", "golden syrup", "stroop",
+                     "frisdrank", "limonade", "vruchtensap", "snoep",
+                     "chocolade", "chocola", "nutella", "jam", "gelei",
+                     "koekje", "koekjes", "cake", "gebak", "snoepgoed"],
+        "alt": "Erythritol, stevia of xylitol als zoetstof",
+        "exceptions": ["pure chocolade", "85% chocolade", "suikervrij",
+                       "suikervrije", "stevia", "erythritol", "xylitol"],
+    },
+    "koosjer": {
+        "triggers": ["varken", "varkensvlees", "varkenshaas", "spek", "ham",
+                     "bacon", "worst", "chorizo", "salami", "prosciutto",
+                     "pancetta", "lardo", "bloedworst",
+                     "garnalen", "kreeft", "krab", "langoustine", "scampi",
+                     "gamba", "gamba's", "gambas", "crevetten", "homard",
+                     "zeekreeft", "koningskrab", "rivierkreeft",
+                     "inktvis", "pijlinktvis", "octopus", "mossel", "mosselen",
+                     "oester", "oesters", "sint-jakobsschelp", "coquille",
+                     "wulk", "paling", "aal", "haai"],
+        "alt": "Koosjer vlees of plantaardig alternatief",
+        "exceptions": [],
+    },
+    "whole30": {
+        "triggers": [
+            # Granen
+            "tarwe", "rogge", "gerst", "haver", "havermout", "spelt", "rijst",
+            "maïs", "mais", "quinoa", "gierst", "teff", "bulgur", "couscous",
+            "semolina", "bloem", "meel", "brood", "pasta",
+            # Peulvruchten
+            "bonen", "linzen", "kikkererwten", "erwten", "pinda", "pindakaas",
+            "soja", "tofu", "tempeh", "edamame",
+            # Zuivel
+            "melk", "room", "kaas", "kwark", "yoghurt", "slagroom",
+            "mascarpone", "mozzarella", "parmezaan", "ricotta", "boter",
+            "roomboter", "karnemelk",
+            # Suiker & zoetstoffen
+            "suiker", "basterdsuiker", "honing", "ahornsiroop", "agave",
+            "glucosestroop", "fructosestroop", "maltosestroop", "stroop",
+            # Alcohol
+            "wijn", "bier", "rum", "cognac", "whisky", "jenever", "port",
+            "sherry", "marsala",
+        ],
+        "alt": "Groenten, fruit, vlees, vis, eieren, noten of zaden",
+        "exceptions": ["ghee", "kokosmelk", "kokosroom", "kokosboter",
+                       "amandelmelk", "havermelk"],
+    },
 }
 
 # ── Request / response models ────────────────────────────────────────────────
