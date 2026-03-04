@@ -1,0 +1,22 @@
+services:
+  # ── Backend (FastAPI) ──────────────────────────────────────────────────────
+  - type: web
+    name: swapchef-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: FRONTEND_URL
+        sync: false   # vul in via Render dashboard na aanmaken frontend service
+
+  # ── Frontend (Vite/React static site) ─────────────────────────────────────
+  - type: web
+    name: swapchef-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE
+        sync: false   # vul in via Render dashboard: URL van swapchef-api
