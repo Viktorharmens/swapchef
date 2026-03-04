@@ -31,7 +31,7 @@ const DIETS = [
   { id: "suikervrij",  label: "Suikervrij",  emoji: "🚫🍬" },
 ];
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
+const API_BASE = "https://swapchef-backend.onrender.com";
 
 export default function RecipeAnalyzer() {
   const [url, setUrl]                   = useState("");
