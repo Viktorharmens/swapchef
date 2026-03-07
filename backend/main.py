@@ -170,7 +170,8 @@ ALLERGEN_MAP = {
 
 DIET_MAP = {
     "vegetarisch": {
-        "triggers": ["vlees", "kip", "kipfilet", "kippenborst", "kippendij", "kippendijfilet"
+        "triggers": ["vlees", "kip", "kipfilet", "kippenborst", "kippendij", "kippendijfilet",
+                     "kippenbouten",
                      "rund", "rundvlees", "gehakt", "rundergehakt", "biefstuk",
                      "ribeye", "ossenhaas", "entrecote", "tartaar",
                      "varken", "varkensvlees", "varkenshaas", "spek", "ham",
@@ -186,6 +187,7 @@ DIET_MAP = {
     },
     "vegan": {
         "triggers": ["vlees", "kip", "kipfilet", "kippenborst", "kippendij",
+                     "kippenbouten",
                      "rund", "rundvlees", "gehakt", "rundergehakt", "biefstuk",
                      "ribeye", "ossenhaas", "entrecote", "tartaar",
                      "varken", "varkensvlees", "varkenshaas", "spek", "ham",
