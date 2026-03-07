@@ -5,6 +5,7 @@ import httpx
 from recipe_scrapers import scrape_html
 from recipe_scrapers._exceptions import WebsiteNotImplementedError, NoSchemaFoundInWildMode
 import re
+import os
 
 BROWSER_HEADERS = {
     "User-Agent": (
@@ -16,6 +17,11 @@ BROWSER_HEADERS = {
 }
 
 app = FastAPI(title="Smart Recipe Substitute API")
+
+_extra = os.getenv("FRONTEND_URL", "")
+ALLOWED_ORIGINS = ["http://localhost:5173", "http://localhost:3000"] + (
+    [_extra] if _extra else []
+)
 
 app.add_middleware(
     CORSMiddleware,
