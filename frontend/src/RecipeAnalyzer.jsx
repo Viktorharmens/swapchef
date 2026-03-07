@@ -32,8 +32,8 @@ const DIETS = [
   { id: "whole30",     label: "Whole30",     emoji: "🥩" },
 ];
 
-const MOBILE_ALLERGEN_LIMIT = 5;
-const MOBILE_DIET_LIMIT = 6;
+const MOBILE_ALLERGEN_LIMIT = 6;
+const MOBILE_DIET_LIMIT = 5;
 
 const API_BASE = "https://swapchef-backend.onrender.com";
 
