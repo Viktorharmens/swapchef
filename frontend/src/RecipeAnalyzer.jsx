@@ -1,35 +1,39 @@
 import { useState } from "react";
 
+// Gesorteerd op populariteit (meest voorkomend eerst)
 const ALLERGENS = [
+  { id: "gluten",       label: "Gluten",       emoji: "🌾" },
   { id: "lactose",      label: "Lactose",      emoji: "🥛" },
-  { id: "gluten",       label: "Gluten",        emoji: "🌾" },
-  { id: "noten",        label: "Noten",         emoji: "🥜" },
-  { id: "ei",           label: "Ei",            emoji: "🥚" },
-  { id: "soja",         label: "Soja",          emoji: "🫘" },
-  { id: "schaaldieren", label: "Schaaldieren",  emoji: "🦐" },
-  { id: "vis",          label: "Vis",           emoji: "🐟" },
-  { id: "weekdieren",   label: "Weekdieren",    emoji: "🦑" },
-  { id: "sesam",        label: "Sesam",         emoji: "🫚" },
-  { id: "mosterd",      label: "Mosterd",       emoji: "🟡" },
-  { id: "selderij",     label: "Selderij",      emoji: "🌿" },
-  { id: "lupine",       label: "Lupine",        emoji: "🌸" },
-  { id: "sulfiet",      label: "Sulfiet",       emoji: "🍷" },
-  { id: "paprika",      label: "Paprika",       emoji: "🫑" },
-  { id: "ui",           label: "Ui",            emoji: "🧅" },
-  { id: "knoflook",     label: "Knoflook",      emoji: "🧄" },
+  { id: "noten",        label: "Noten",        emoji: "🥜" },
+  { id: "ei",           label: "Ei",           emoji: "🥚" },
+  { id: "soja",         label: "Soja",         emoji: "🫘" },
+  { id: "schaaldieren", label: "Schaaldieren", emoji: "🦐" },
+  { id: "vis",          label: "Vis",          emoji: "🐟" },
+  { id: "sesam",        label: "Sesam",        emoji: "🫚" },
+  { id: "mosterd",      label: "Mosterd",      emoji: "🟡" },
+  { id: "selderij",     label: "Selderij",     emoji: "🌿" },
+  { id: "weekdieren",   label: "Weekdieren",   emoji: "🦑" },
+  { id: "paprika",      label: "Paprika",      emoji: "🫑" },
+  { id: "ui",           label: "Ui",           emoji: "🧅" },
+  { id: "knoflook",     label: "Knoflook",     emoji: "🧄" },
+  { id: "lupine",       label: "Lupine",       emoji: "🌸" },
+  { id: "sulfiet",      label: "Sulfiet",      emoji: "🍷" },
 ];
 
 const DIETS = [
   { id: "vegetarisch", label: "Vegetarisch", emoji: "🥦" },
   { id: "vegan",       label: "Vegan",       emoji: "🌱" },
-  { id: "keto",        label: "Keto",        emoji: "🥑" },
   { id: "halal",       label: "Halal",       emoji: "☪️" },
-  { id: "koosjer",     label: "Koosjer",     emoji: "✡️" },
-  { id: "paleo",       label: "Paleo",       emoji: "🦴" },
-  { id: "whole30",     label: "Whole30",     emoji: "🥩" },
-  { id: "fodmap",      label: "FODMAP",      emoji: "🍎" },
+  { id: "keto",        label: "Keto",        emoji: "🥑" },
   { id: "suikervrij",  label: "Suikervrij",  emoji: "🚫🍬" },
+  { id: "fodmap",      label: "FODMAP",      emoji: "🍎" },
+  { id: "paleo",       label: "Paleo",       emoji: "🦴" },
+  { id: "koosjer",     label: "Koosjer",     emoji: "✡️" },
+  { id: "whole30",     label: "Whole30",     emoji: "🥩" },
 ];
+
+const MOBILE_ALLERGEN_LIMIT = 8;
+const MOBILE_DIET_LIMIT = 5;
 
 const API_BASE = "https://swapchef-backend.onrender.com";
 
@@ -41,6 +45,8 @@ export default function RecipeAnalyzer() {
   const [result, setResult]             = useState(null);
   const [error, setError]               = useState(null);
   const [activeModal, setActiveModal]   = useState(null);
+  const [showAllAllergens, setShowAllAllergens] = useState(false);
+  const [showAllDiets, setShowAllDiets]         = useState(false);
 
   function toggleAllergen(id) {
     setSelected((prev) =>
@@ -112,7 +118,7 @@ export default function RecipeAnalyzer() {
         >
           {/* Header inside card */}
           <div className="mb-6 text-center">
-            <img src="/logo.png" alt="SwapChef" className="mx-auto h-32 w-auto" />
+            <img src="/logo.png" alt="SwapChef" className="mx-auto h-20 sm:h-32 w-auto" />
             <p className="mt-2 text-base text-gray-500 font-medium">
               De slimme assistent voor elk dieet of allergie.
             </p>
@@ -154,15 +160,17 @@ export default function RecipeAnalyzer() {
               Mijn allergieën
             </legend>
             <div className="flex flex-wrap gap-2">
-              {ALLERGENS.map(({ id, label, emoji }) => {
+              {ALLERGENS.map(({ id, label, emoji }, idx) => {
                 const active = selected.includes(id);
+                const hiddenOnMobile = !showAllAllergens && idx >= MOBILE_ALLERGEN_LIMIT;
                 return (
                   <button
                     key={id}
                     type="button"
                     onClick={() => toggleAllergen(id)}
-                    className={`inline-flex items-center gap-2 rounded-full border-2 px-4 py-2
+                    className={`items-center gap-2 rounded-full border-2 px-4 py-2
                                 text-base font-semibold transition select-none
+                                ${hiddenOnMobile ? "hidden sm:inline-flex" : "inline-flex"}
                                 ${active
                                   ? "border-orange-500 bg-orange-500 text-white shadow-md"
                                   : "border-gray-200 bg-white text-gray-600 hover:border-orange-400 hover:bg-orange-50"
@@ -173,6 +181,17 @@ export default function RecipeAnalyzer() {
                   </button>
                 );
               })}
+              {!showAllAllergens && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllAllergens(true)}
+                  className="sm:hidden inline-flex items-center gap-1 rounded-full border-2
+                             border-dashed border-gray-300 px-4 py-2 text-base font-semibold
+                             text-gray-500 hover:border-orange-400 hover:text-orange-500 transition select-none"
+                >
+                  +{ALLERGENS.length - MOBILE_ALLERGEN_LIMIT} meer
+                </button>
+              )}
             </div>
           </fieldset>
 
@@ -182,15 +201,17 @@ export default function RecipeAnalyzer() {
               Mijn dieet
             </legend>
             <div className="flex flex-wrap gap-2">
-              {DIETS.map(({ id, label, emoji }) => {
+              {DIETS.map(({ id, label, emoji }, idx) => {
                 const active = selectedDiets.includes(id);
+                const hiddenOnMobile = !showAllDiets && idx >= MOBILE_DIET_LIMIT;
                 return (
                   <button
                     key={id}
                     type="button"
                     onClick={() => toggleDiet(id)}
-                    className={`inline-flex items-center gap-2 rounded-full border-2 px-4 py-2
+                    className={`items-center gap-2 rounded-full border-2 px-4 py-2
                                 text-base font-semibold transition select-none
+                                ${hiddenOnMobile ? "hidden sm:inline-flex" : "inline-flex"}
                                 ${active
                                   ? "border-green-600 bg-green-600 text-white shadow-md"
                                   : "border-gray-200 bg-white text-gray-600 hover:border-green-500 hover:bg-green-50"
@@ -201,6 +222,17 @@ export default function RecipeAnalyzer() {
                   </button>
                 );
               })}
+              {!showAllDiets && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllDiets(true)}
+                  className="sm:hidden inline-flex items-center gap-1 rounded-full border-2
+                             border-dashed border-gray-300 px-4 py-2 text-base font-semibold
+                             text-gray-500 hover:border-green-500 hover:text-green-600 transition select-none"
+                >
+                  +{DIETS.length - MOBILE_DIET_LIMIT} meer
+                </button>
+              )}
             </div>
           </fieldset>
 
