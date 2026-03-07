@@ -33,7 +33,7 @@ const DIETS = [
 ];
 
 const MOBILE_ALLERGEN_LIMIT = 5;
-const MOBILE_DIET_LIMIT = 5;
+const MOBILE_DIET_LIMIT = 6;
 
 const API_BASE = "https://swapchef-backend.onrender.com";
 
