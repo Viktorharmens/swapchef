@@ -32,7 +32,7 @@ const DIETS = [
   { id: "whole30",     label: "Whole30",     emoji: "🥩" },
 ];
 
-const MOBILE_ALLERGEN_LIMIT = 8;
+const MOBILE_ALLERGEN_LIMIT = 5;
 const MOBILE_DIET_LIMIT = 5;
 
 const API_BASE = "https://swapchef-backend.onrender.com";
@@ -114,7 +114,7 @@ export default function RecipeAnalyzer() {
         {/* Form card */}
         <form
           onSubmit={handleSubmit}
-          className="rounded-3xl bg-white/60 backdrop-blur-md border border-white/40 p-8 shadow-2xl"
+          className="rounded-3xl bg-white/60 backdrop-blur-md border border-white/40 p-5 sm:p-8 shadow-2xl"
         >
           {/* Header inside card */}
           <div className="mb-6 text-center">
