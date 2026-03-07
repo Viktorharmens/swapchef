@@ -40,6 +40,7 @@ export default function RecipeAnalyzer() {
   const [loading, setLoading]           = useState(false);
   const [result, setResult]             = useState(null);
   const [error, setError]               = useState(null);
+  const [activeModal, setActiveModal]   = useState(null);
 
   function toggleAllergen(id) {
     setSelected((prev) =>
@@ -323,6 +324,113 @@ export default function RecipeAnalyzer() {
           </div>
         )}
       </div>
+
+      {/* Footer */}
+      <footer className="relative mt-12 pb-6 text-center text-sm text-white/70">
+        <p>© {new Date().getFullYear()} SwapChef. Alle rechten voorbehouden.</p>
+        <div className="mt-1 flex justify-center gap-4">
+          <button
+            onClick={() => setActiveModal("disclaimer")}
+            className="underline underline-offset-2 hover:text-white transition"
+          >
+            Disclaimer
+          </button>
+          <button
+            onClick={() => setActiveModal("privacy")}
+            className="underline underline-offset-2 hover:text-white transition"
+          >
+            Privacybeleid
+          </button>
+        </div>
+      </footer>
+
+      {/* Modal */}
+      {activeModal && (
+        <Modal onClose={() => setActiveModal(null)}>
+          {activeModal === "disclaimer" ? <DisclaimerContent /> : <PrivacyContent />}
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function Modal({ onClose, children }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div
+        className="relative max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-3xl
+                   bg-white p-8 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          className="absolute right-5 top-5 text-gray-400 hover:text-gray-600 transition"
+          aria-label="Sluiten"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+          </svg>
+        </button>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function DisclaimerContent() {
+  return (
+    <div className="prose prose-sm max-w-none text-gray-700">
+      <h2 className="text-xl font-bold text-gray-900 mb-4">Disclaimer</h2>
+      <p>
+        SwapChef is een informatief hulpmiddel dat ingrediënten analyseert op basis van publiek beschikbare receptinformatie. De resultaten zijn bedoeld als algemene indicatie en kunnen onvolledig of onjuist zijn.
+      </p>
+      <h3 className="font-semibold text-gray-800 mt-4 mb-2">Geen medisch advies</h3>
+      <p>
+        De informatie op SwapChef vormt geen medisch of dieetkundig advies. Personen met (ernstige) allergieën of medische aandoeningen dienen altijd een arts, diëtist of allergoloog te raadplegen voordat zij op basis van deze tool voedselkeuzes maken.
+      </p>
+      <h3 className="font-semibold text-gray-800 mt-4 mb-2">Aansprakelijkheid</h3>
+      <p>
+        SwapChef aanvaardt geen aansprakelijkheid voor schade — direct of indirect — die voortvloeit uit het gebruik van de informatie op dit platform. Controleer altijd zelf de etiketten van producten op allergenen.
+      </p>
+      <h3 className="font-semibold text-gray-800 mt-4 mb-2">Externe websites</h3>
+      <p>
+        SwapChef analyseert recepten van externe websites. Wij zijn niet verantwoordelijk voor de inhoud, nauwkeurigheid of beschikbaarheid van deze externe bronnen.
+      </p>
+    </div>
+  );
+}
+
+function PrivacyContent() {
+  return (
+    <div className="prose prose-sm max-w-none text-gray-700">
+      <h2 className="text-xl font-bold text-gray-900 mb-4">Privacybeleid</h2>
+      <p>
+        SwapChef hecht veel waarde aan de bescherming van uw persoonsgegevens. In dit privacybeleid informeren wij u over hoe wij omgaan met gegevens die via ons platform worden verwerkt.
+      </p>
+      <h3 className="font-semibold text-gray-800 mt-4 mb-2">Welke gegevens verwerken wij?</h3>
+      <p>
+        SwapChef verwerkt geen persoonsgegevens. Wij slaan geen gebruikersinformatie, IP-adressen of sessiedata op. De ingevoerde recept-URL en geselecteerde allergieën/dieetvoorkeuren worden uitsluitend gebruikt voor de analyse en worden niet opgeslagen.
+      </p>
+      <h3 className="font-semibold text-gray-800 mt-4 mb-2">Cookies</h3>
+      <p>
+        SwapChef maakt geen gebruik van tracking-cookies of analytische cookies van derden. Er worden uitsluitend functioneel noodzakelijke cookies gebruikt voor de werking van de applicatie.
+      </p>
+      <h3 className="font-semibold text-gray-800 mt-4 mb-2">Externe diensten</h3>
+      <p>
+        De backend van SwapChef draait op Render.com. Raadpleeg het privacybeleid van Render voor informatie over hoe zij gegevens verwerken.
+      </p>
+      <h3 className="font-semibold text-gray-800 mt-4 mb-2">Contact</h3>
+      <p>
+        Heeft u vragen over dit privacybeleid? Neem dan contact op via{" "}
+        <a href="mailto:info@swapchef.nl" className="text-orange-500 underline">
+          info@swapchef.nl
+        </a>.
+      </p>
+      <p className="mt-4 text-xs text-gray-400">Laatst bijgewerkt: maart 2026</p>
     </div>
   );
 }
