@@ -323,10 +323,9 @@ export default function RecipeAnalyzer() {
             )}
           </div>
         )}
-      </div>
 
-      {/* Footer */}
-      <footer className="relative mt-12 pb-6 text-center text-sm text-white/70">
+        {/* Footer */}
+        <footer className="mt-10 pb-6 text-center text-sm text-white/70">
         <p>© {new Date().getFullYear()} SwapChef. Alle rechten voorbehouden.</p>
         <div className="mt-1 flex justify-center gap-4">
           <button
@@ -343,6 +342,7 @@ export default function RecipeAnalyzer() {
           </button>
         </div>
       </footer>
+      </div>
 
       {/* Modal */}
       {activeModal && (
