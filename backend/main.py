@@ -392,6 +392,23 @@ class AnalyzeResponse(BaseModel):
     unsafe_count: int
     ingredients: list[IngredientResult]
 
+# ── Pre-compile regex patterns at startup ────────────────────────────────────
+
+def _compile_mapping(mapping: dict) -> dict:
+    """Add a pre-compiled regex and exception set to a mapping entry."""
+    triggers = mapping["triggers"]
+    # Sort longest first so more specific terms match before shorter ones
+    sorted_triggers = sorted(triggers, key=len, reverse=True)
+    pattern = re.compile(
+        r"\b(" + "|".join(re.escape(t) for t in sorted_triggers) + r")\b",
+        re.IGNORECASE,
+    )
+    exceptions = set(mapping.get("exceptions", []))
+    return {**mapping, "_pattern": pattern, "_exceptions": exceptions}
+
+ALLERGEN_MAP = {k: _compile_mapping(v) for k, v in ALLERGEN_MAP.items()}
+DIET_MAP     = {k: _compile_mapping(v) for k, v in DIET_MAP.items()}
+
 # ── Allergen checking ────────────────────────────────────────────────────────
 
 def _normalize(text: str) -> str:
@@ -399,15 +416,11 @@ def _normalize(text: str) -> str:
 
 
 def _find_trigger(normalized: str, mapping: dict) -> str | None:
-    """Returns the first matched trigger, or None if excepted or no match."""
-    is_exception = any(exc in normalized for exc in mapping["exceptions"])
-    if is_exception:
+    """Single-pass regex check using pre-compiled pattern."""
+    if any(exc in normalized for exc in mapping["_exceptions"]):
         return None
-    for trigger in mapping["triggers"]:
-        pattern = rf"\b{re.escape(trigger)}\b"
-        if re.search(pattern, normalized):
-            return trigger
-    return None
+    m = mapping["_pattern"].search(normalized)
+    return m.group(1).lower() if m else None
 
 
 def _get_alternative(trigger: str, mapping: dict) -> str:
