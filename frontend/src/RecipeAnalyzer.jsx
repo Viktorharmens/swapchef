@@ -226,7 +226,6 @@ export default function RecipeAnalyzer() {
                 <input
                   type="file"
                   accept="image/*"
-                  capture="environment"
                   className="hidden"
                   onChange={handleImageChange}
                 />
