@@ -248,8 +248,11 @@ export default function RecipeAnalyzer() {
           <button
             type="submit"
             disabled={loading}
-            className="group mt-8 w-full rounded-2xl bg-orange-500 px-6 py-4 text-lg font-bold
-                       text-white hover:bg-orange-600 active:scale-95
+            style={{ backgroundColor: "#ff4423" }}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = "#e03a1e"}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = "#ff4423"}
+            className="group mt-8 w-full rounded-2xl px-6 py-4 text-lg font-bold
+                       text-white active:scale-95
                        disabled:cursor-not-allowed disabled:opacity-60 transition"
           >
             {loading ? (
