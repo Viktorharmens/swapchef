@@ -324,20 +324,17 @@ export default function RecipeAnalyzer() {
                   {unsafeIngredients.map((ing, i) => (
                     <li
                       key={i}
-                      className="flex flex-col rounded-2xl border border-red-100
-                                 bg-red-50 px-4 py-3 sm:flex-row sm:items-start sm:gap-4"
+                      className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3"
                     >
-                      <div className="flex-1">
+                      <div className="flex items-center justify-between gap-3">
                         <p className="font-medium text-red-800">{ing.original}</p>
-                        <p className="mt-0.5 text-base text-red-400 capitalize">
+                        <span className="shrink-0 text-xs font-semibold uppercase tracking-wide
+                                         text-red-400">
                           {ing.issue_type === "dieet" ? "Dieet" : "Allergie"}: {ing.matched_allergen}
-                        </p>
-                      </div>
-                      <div className="mt-2 sm:mt-0 sm:text-right">
-                        <span className="inline-block rounded-full bg-green-100 px-3 py-1
-                                         text-base font-semibold text-green-800">
-                          ✔ {ing.alternative}
                         </span>
+                      </div>
+                      <div className="mt-2 rounded-xl bg-green-100 px-3 py-2 text-sm font-semibold text-green-800">
+                        ✔ {ing.alternative}
                       </div>
                     </li>
                   ))}
