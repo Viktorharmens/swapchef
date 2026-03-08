@@ -176,12 +176,13 @@ export default function RecipeAnalyzer() {
                     key={id}
                     type="button"
                     onClick={() => toggleAllergen(id)}
+                    style={active ? { backgroundColor: "#ff4423", borderColor: "#ff4423" } : {}}
                     className={`items-center gap-2 rounded-full border-2 px-4 py-2
                                 text-base font-semibold transition select-none
                                 ${hiddenOnMobile ? "hidden sm:inline-flex" : "inline-flex"}
                                 ${active
-                                  ? "border-orange-500 bg-orange-500 text-white shadow-md"
-                                  : "border-gray-200 bg-white text-gray-600 hover:border-orange-400 hover:bg-orange-50"
+                                  ? "text-white shadow-md"
+                                  : "border-gray-200 bg-white text-gray-600 hover:border-[#ff4423] hover:bg-orange-50"
                                 }`}
                   >
                     <span>{emoji}</span>
@@ -195,7 +196,7 @@ export default function RecipeAnalyzer() {
                   onClick={() => setShowAllAllergens(true)}
                   className="sm:hidden inline-flex items-center gap-1 rounded-full border-2
                              border-dashed border-gray-300 px-4 py-2 text-base font-semibold
-                             text-gray-500 hover:border-orange-400 hover:text-orange-500 transition select-none"
+                             text-gray-500 hover:border-[#ff4423] hover:text-[#ff4423] transition select-none"
                 >
                   +{ALLERGENS.length - MOBILE_ALLERGEN_LIMIT} meer
                 </button>
