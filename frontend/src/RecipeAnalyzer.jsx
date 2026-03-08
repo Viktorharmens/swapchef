@@ -47,6 +47,9 @@ export default function RecipeAnalyzer() {
   const [activeModal, setActiveModal]   = useState(null);
   const [showAllAllergens, setShowAllAllergens] = useState(false);
   const [showAllDiets, setShowAllDiets]         = useState(false);
+  const [inputMode, setInputMode]               = useState("url");
+  const [imageFile, setImageFile]               = useState(null);
+  const [imagePreview, setImagePreview]         = useState(null);
   const resultsRef = useRef(null);
 
   useEffect(() => {
@@ -68,9 +71,15 @@ export default function RecipeAnalyzer() {
     );
   }
 
+  function handleImageChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!url.trim()) return;
     if (selected.length === 0 && selectedDiets.length === 0) {
       setError("Selecteer minimaal één allergie of dieet.");
       return;
@@ -81,18 +90,37 @@ export default function RecipeAnalyzer() {
     setResult(null);
 
     try {
-      const res = await fetch(`${API_BASE}/analyze`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, user_allergies: selected, user_diets: selectedDiets }),
-      });
+      let res;
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.detail ?? "Er ging iets mis.");
+      if (inputMode === "url") {
+        if (!url.trim()) { setLoading(false); return; }
+        res = await fetch(`${API_BASE}/analyze`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, user_allergies: selected, user_diets: selectedDiets }),
+        });
+      } else {
+        if (!imageFile) { setLoading(false); return; }
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result.split(",")[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(imageFile);
+        });
+        res = await fetch(`${API_BASE}/analyze-image`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            image_base64: base64,
+            media_type: imageFile.type || "image/jpeg",
+            user_allergies: selected,
+            user_diets: selectedDiets,
+          }),
+        });
       }
 
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail ?? "Er ging iets mis.");
       setResult(data);
     } catch (err) {
       setError(err.message);
@@ -132,35 +160,99 @@ export default function RecipeAnalyzer() {
             </p>
           </div>
 
-          {/* URL input */}
-          <label className="block text-base font-bold text-gray-800 mb-2">
-            Recept-URL
-          </label>
-          <div className="relative">
-            <input
-              type="url"
-              required
-              placeholder="https://www.allerhande.nl/recept/..."
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 pr-10 text-base
-                         focus:border-orange-400 focus:outline-none focus:ring-2
-                         focus:ring-orange-100 transition"
-            />
-            {url && (
-              <button
-                type="button"
-                onClick={() => setUrl("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400
-                           hover:text-gray-600 transition"
-                aria-label="URL wissen"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
-              </button>
-            )}
+          {/* Tab switcher */}
+          <div className="flex rounded-xl overflow-hidden border border-gray-200 mb-4">
+            <button
+              type="button"
+              onClick={() => setInputMode("url")}
+              className={`flex-1 py-2.5 text-sm font-semibold transition
+                ${inputMode === "url"
+                  ? "bg-orange-500 text-white"
+                  : "bg-white text-gray-500 hover:bg-orange-50"}`}
+            >
+              🔗 URL
+            </button>
+            <button
+              type="button"
+              onClick={() => setInputMode("image")}
+              className={`flex-1 py-2.5 text-sm font-semibold transition
+                ${inputMode === "image"
+                  ? "bg-orange-500 text-white"
+                  : "bg-white text-gray-500 hover:bg-orange-50"}`}
+            >
+              📷 Foto / Upload
+            </button>
           </div>
+
+          {/* URL input */}
+          {inputMode === "url" && (
+            <div className="relative">
+              <input
+                type="url"
+                placeholder="https://www.allerhande.nl/recept/..."
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 px-4 py-3 pr-10 text-base
+                           focus:border-orange-400 focus:outline-none focus:ring-2
+                           focus:ring-orange-100 transition"
+              />
+              {url && (
+                <button
+                  type="button"
+                  onClick={() => setUrl("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400
+                             hover:text-gray-600 transition"
+                  aria-label="URL wissen"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Image input */}
+          {inputMode === "image" && (
+            <div className="space-y-3">
+              <label className="flex flex-col items-center justify-center w-full rounded-xl
+                               border-2 border-dashed border-gray-300 px-4 py-6 cursor-pointer
+                               hover:border-orange-400 hover:bg-orange-50 transition">
+                <span className="text-3xl mb-1">📷</span>
+                <span className="text-sm font-semibold text-gray-600">
+                  {imageFile ? imageFile.name : "Kies een foto of maak er een"}
+                </span>
+                <span className="text-xs text-gray-400 mt-0.5">JPG, PNG, WEBP</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handleImageChange}
+                />
+              </label>
+              {imagePreview && (
+                <div className="relative">
+                  <img
+                    src={imagePreview}
+                    alt="Recept preview"
+                    className="w-full rounded-xl object-cover max-h-48"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { setImageFile(null); setImagePreview(null); }}
+                    className="absolute top-2 right-2 rounded-full bg-black/50 p-1
+                               text-white hover:bg-black/70 transition"
+                    aria-label="Foto verwijderen"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Allergen multi-select */}
           <fieldset className="mt-6">

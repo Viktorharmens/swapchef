@@ -5,6 +5,8 @@ import httpx
 from recipe_scrapers import scrape_html
 from recipe_scrapers._exceptions import WebsiteNotImplementedError, NoSchemaFoundInWildMode
 import re
+import json
+import anthropic
 
 BROWSER_HEADERS = {
     "User-Agent": (
@@ -435,6 +437,67 @@ def analyze_recipe(body: AnalyzeRequest):
         title = scraper.title() or "Onbekend recept"
     except Exception:
         title = "Onbekend recept"
+
+    results = [check_ingredient(ing, body.user_allergies, body.user_diets) for ing in raw_ingredients]
+    unsafe_count = sum(1 for r in results if r.is_unsafe)
+
+    return AnalyzeResponse(
+        recipe_title=title,
+        total_ingredients=len(results),
+        unsafe_count=unsafe_count,
+        ingredients=results,
+    )
+
+
+class ImageAnalyzeRequest(BaseModel):
+    image_base64: str
+    media_type: str = "image/jpeg"
+    user_allergies: list[str]
+    user_diets: list[str] = []
+
+
+@app.post("/analyze-image", response_model=AnalyzeResponse)
+def analyze_image(body: ImageAnalyzeRequest):
+    client = anthropic.Anthropic()
+
+    prompt = (
+        "Je bent een recept-assistent. Analyseer de afbeelding en extraheer het recept.\n"
+        "Geef je antwoord ALLEEN als geldig JSON in dit formaat:\n"
+        '{"title": "naam van het recept", "ingredients": ["ingrediënt 1", "ingrediënt 2"]}\n'
+        "Geen uitleg, geen markdown, alleen JSON."
+    )
+
+    try:
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1024,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": body.media_type,
+                            "data": body.image_base64,
+                        },
+                    },
+                    {"type": "text", "text": prompt},
+                ],
+            }],
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Claude API fout: {exc}")
+
+    try:
+        data = json.loads(message.content[0].text)
+        title = data.get("title", "") or "Onbekend recept"
+        raw_ingredients: list[str] = data.get("ingredients", [])
+    except (json.JSONDecodeError, KeyError, IndexError):
+        raise HTTPException(status_code=422, detail="Kon recept niet uitlezen uit de afbeelding.")
+
+    if not raw_ingredients:
+        raise HTTPException(status_code=422, detail="Geen ingrediënten gevonden in de afbeelding.")
 
     results = [check_ingredient(ing, body.user_allergies, body.user_diets) for ing in raw_ingredients]
     unsafe_count = sum(1 for r in results if r.is_unsafe)
