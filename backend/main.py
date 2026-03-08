@@ -33,14 +33,50 @@ app.add_middleware(
 
 ALLERGEN_MAP = {
     "lactose": {
-        "triggers": ["melk", "room", "boter", "roomboter", "kaas", "kwark", "yoghurt",
-                     "slagroom", "crème fraîche", "creme fraiche", "mascarpone",
-                     "mozzarella", "parmezaan", "parmesan", "ricotta", "ghee",
-                     "karnemelk", "vla", "pudding", "custard", "ijs",
+        "triggers": ["roomboter", "karnemelk", "slagroom", "crème fraîche", "creme fraiche",
+                     "mascarpone", "mozzarella", "parmezaan", "parmesan", "pecorino",
+                     "ricotta", "roomkaas", "burrata",
                      "brie", "camembert", "gorgonzola", "feta", "cheddar",
                      "gouda", "edam", "gruyère", "gruyere", "emmentaler",
-                     "pecorino", "burrata", "roomkaas"],
-        "alt": "Haver- of soja-alternatief",
+                     "melk", "room", "boter", "kaas", "kwark", "yoghurt",
+                     "ghee", "vla", "pudding", "custard", "ijs"],
+        "alt": "Plantaardig zuivelalternatief (soja, haver of kokos)",
+        "alt_map": {
+            "melk":          "Havermelk, sojamelk of amandelmelk",
+            "room":          "Kokosroom of haverroom",
+            "slagroom":      "Kokosslagroom of plantaardige slagroom (bijv. haver of soja)",
+            "boter":         "Plantaardige boter (bijv. Becel) of kokosolie",
+            "roomboter":     "Plantaardige boter (bijv. Becel) of kokosolie",
+            "ghee":          "Kokosolie of plantaardige boter",
+            "yoghurt":       "Sojamelkyoghurt, kokosyoghurt of havermelkyoghurt",
+            "kwark":         "Sojakwark of kokosmilk-kwark",
+            "mascarpone":    "Cashew-mascarpone of soja-mascarpone",
+            "ricotta":       "Tofu-ricotta of cashew-ricotta",
+            "crème fraîche": "Kokos crème fraîche of sojaroom",
+            "creme fraiche": "Kokos crème fraîche of sojaroom",
+            "roomkaas":      "Sojaroomkaas of cashewroomkaas",
+            "mozzarella":    "Vegane mozzarella (bijv. op basis van cashew of rijst)",
+            "parmezaan":     "Voedingsgist of vegane parmezaan",
+            "parmesan":      "Voedingsgist of vegane parmezaan",
+            "pecorino":      "Voedingsgist of vegane harde kaas",
+            "feta":          "Tofu-feta (tofu met citroensap en zout) of vegane feta",
+            "brie":          "Vegane zachte kaas of cashewkaas",
+            "camembert":     "Vegane zachte kaas of cashewkaas",
+            "gorgonzola":    "Vegane blauwe kaas",
+            "cheddar":       "Vegane harde kaas of voedingsgist",
+            "gouda":         "Vegane harde kaas of voedingsgist",
+            "edam":          "Vegane harde kaas of voedingsgist",
+            "gruyère":       "Vegane harde kaas of voedingsgist",
+            "gruyere":       "Vegane harde kaas of voedingsgist",
+            "emmentaler":    "Vegane harde kaas of voedingsgist",
+            "burrata":       "Cashew-burrata of vegane burrata",
+            "karnemelk":     "Sojamelk met een scheutje citroensap of azijn",
+            "vla":           "Sojavla of havervla",
+            "pudding":       "Sojapudding of kokospudding",
+            "custard":       "Sojacustard of kokosmilk-custard",
+            "ijs":           "Kokosijs, sojaijs of haverijs",
+            "kaas":          "Vegane kaas of voedingsgist",
+        },
         "exceptions": ["kokosmelk", "amandelmelk", "havermelk", "sojamelk",
                        "rijstmelk", "kokosroom", "kokosboter", "lactosevrij",
                        "lactosevrije"],
@@ -196,11 +232,31 @@ DIET_MAP = {
                      "kabeljauw", "forel", "tilapia", "pangasius",
                      "garnalen", "kreeft", "krab", "scampi", "langoustine",
                      "ansjovis", "sardine",
+                     "mascarpone", "mozzarella", "parmezaan", "ricotta", "slagroom",
                      "melk", "room", "boter", "kaas", "kwark", "yoghurt",
-                     "slagroom", "mascarpone", "mozzarella", "parmezaan", "ricotta",
                      "ei", "eieren", "eigeel", "eiwit", "mayonaise",
                      "honing", "gelatine"],
         "alt": "Plantaardig alternatief (tofu, sojamelk, lijnzaad-ei, agave)",
+        "alt_map": {
+            "melk":      "Havermelk, sojamelk of amandelmelk",
+            "room":      "Kokosroom of haverroom",
+            "slagroom":  "Kokosslagroom of plantaardige slagroom",
+            "boter":     "Plantaardige boter (bijv. Becel) of kokosolie",
+            "kaas":      "Vegane kaas of voedingsgist",
+            "mozzarella":"Vegane mozzarella (bijv. op basis van cashew)",
+            "parmezaan": "Voedingsgist of vegane parmezaan",
+            "mascarpone":"Cashew-mascarpone of soja-mascarpone",
+            "ricotta":   "Tofu-ricotta of cashew-ricotta",
+            "kwark":     "Sojakwark of kokosmilk-kwark",
+            "yoghurt":   "Sojamelkyoghurt, kokosyoghurt of havermelkyoghurt",
+            "ei":        "Lijnzaad-ei (1 el lijnzaad + 3 el water) of aquafaba",
+            "eieren":    "Lijnzaad-ei (1 el lijnzaad + 3 el water) of aquafaba",
+            "eigeel":    "Aquafaba of soja-eigeel",
+            "eiwit":     "Aquafaba (opgeklopt voor meringue)",
+            "mayonaise": "Vegane mayonaise (bijv. op basis van aquafaba)",
+            "honing":    "Agavesiroop of ahornsiroop",
+            "gelatine":  "Agar-agar (plantaardig geleermiddel)",
+        },
         "exceptions": ["bloemkool", "nootmuskaat", "kokosmelk", "amandelmelk",
                        "havermelk", "sojamelk", "kokosroom", "kokosboter"],
     },
@@ -342,16 +398,21 @@ def _normalize(text: str) -> str:
     return text.lower().strip()
 
 
-def _check_mapping(normalized: str, key: str, mapping: dict) -> bool:
-    """Returns True if the ingredient matches a trigger in the given mapping."""
+def _find_trigger(normalized: str, mapping: dict) -> str | None:
+    """Returns the first matched trigger, or None if excepted or no match."""
     is_exception = any(exc in normalized for exc in mapping["exceptions"])
     if is_exception:
-        return False
+        return None
     for trigger in mapping["triggers"]:
         pattern = rf"\b{re.escape(trigger)}\b"
         if re.search(pattern, normalized):
-            return True
-    return False
+            return trigger
+    return None
+
+
+def _get_alternative(trigger: str, mapping: dict) -> str:
+    """Returns trigger-specific alt if available, otherwise the generic alt."""
+    return mapping.get("alt_map", {}).get(trigger, mapping["alt"])
 
 
 def check_ingredient(
@@ -365,12 +426,13 @@ def check_ingredient(
         allergen = allergen.lower()
         if allergen not in ALLERGEN_MAP:
             continue
-        if _check_mapping(normalized, allergen, ALLERGEN_MAP[allergen]):
+        trigger = _find_trigger(normalized, ALLERGEN_MAP[allergen])
+        if trigger:
             return IngredientResult(
                 original=ingredient,
                 is_unsafe=True,
                 matched_allergen=allergen,
-                alternative=ALLERGEN_MAP[allergen]["alt"],
+                alternative=_get_alternative(trigger, ALLERGEN_MAP[allergen]),
                 issue_type="allergie",
             )
 
@@ -378,12 +440,13 @@ def check_ingredient(
         diet = diet.lower()
         if diet not in DIET_MAP:
             continue
-        if _check_mapping(normalized, diet, DIET_MAP[diet]):
+        trigger = _find_trigger(normalized, DIET_MAP[diet])
+        if trigger:
             return IngredientResult(
                 original=ingredient,
                 is_unsafe=True,
                 matched_allergen=diet,
-                alternative=DIET_MAP[diet]["alt"],
+                alternative=_get_alternative(trigger, DIET_MAP[diet]),
                 issue_type="dieet",
             )
 
