@@ -206,32 +206,100 @@ ALLERGEN_MAP = {
 
 DIET_MAP = {
     "vegetarisch": {
-        "triggers": ["vlees", "kip", "kipfilet", "kippenborst", "kippendij", "kippendijfilet"
-                     "rund", "rundvlees", "gehakt", "rundergehakt", "biefstuk",
-                     "ribeye", "ossenhaas", "entrecote", "tartaar",
-                     "varken", "varkensvlees", "varkenshaas", "spek", "ham",
-                     "bacon", "worst", "chorizo", "salami", "prosciutto", "pancetta",
-                     "lam", "lamsvlees", "lamsrack", "lamsschouder",
-                     "kalkoen", "eend", "wild", "konijn", "hert",
-                     "vis", "zalm", "tonijn", "makreel", "haring",
-                     "kabeljauw", "forel", "tilapia", "pangasius",
-                     "garnalen", "kreeft", "krab", "scampi", "langoustine",
-                     "ansjovis", "gamba", "gamba's", "gambas", "sardine"],
+        "triggers": [
+            # Algemeen
+            "vlees", "vleesproduct",
+            # Kip & gevogelte
+            "kip", "kipfilet", "kippenborst", "kippendij", "kippendijfilet",
+            "kipdij", "kipdijen", "kippenbouten", "kippenbout", "kippenpoot",
+            "kippenvleugel", "kippenvleugels", "kipvleugel", "kipsate", "kippensate",
+            "hele kip", "kalkoen", "kalkoenfilet", "kalkoendij", "kalkoenborst",
+            "eend", "eendenborst", "eendenbout", "gans", "parelhoen", "fazant",
+            "duif", "kwartel",
+            # Rund
+            "rund", "rundvlees", "rundergehakt", "gehakt",
+            "biefstuk", "ribeye", "rib-eye", "ossenhaas", "entrecote", "tartaar",
+            "rosbief", "bavette", "tomahawk", "draadjesvlees", "stoofvlees",
+            "sucadelap", "kogelbiefstuk", "contrefilet", "runderhaas",
+            "longhaas", "t-bone", "côte de boeuf", "cote de boeuf",
+            "runderrib", "runderrollade",
+            # Kalf
+            "kalf", "kalfsvlees", "kalfsschnitzel", "kalfsfricandeau",
+            "kalfsbiefstuk", "kalfsoester", "kalfsrollade", "kalfsschouder",
+            "kalfskotelet", "kalfsburger",
+            # Varken
+            "varken", "varkensvlees", "varkenshaas", "varkensbuik", "buikspek",
+            "spek", "speklap", "ham", "bacon", "pancetta", "prosciutto",
+            "worst", "braadworst", "rookworst", "metworst", "knakworst",
+            "chorizo", "salami", "leverworst", "bloedworst", "frankfurter",
+            "karbonade", "schouderkarbonade", "ribkarbonade", "kotelet",
+            "spareribs", "sparerib", "pulled pork", "procureur",
+            "varkensschouder", "varkensnek", "rollade",
+            "gehaktbal", "gehaktballen", "hamburger", "slavink",
+            "halfom", "half-om-half",
+            # Lam
+            "lam", "lamsvlees", "lamsrack", "lamsschouder", "lamsbout",
+            "lamskoteletten", "lamsnek", "lamsrib",
+            # Wild & overig
+            "wild", "wildzwijn", "ree", "hert", "haas", "konijn", "eland",
+            "hertenbiefstuk", "hertenstoofvlees",
+            # Vis & zeevruchten
+            "vis", "zalm", "tonijn", "makreel", "haring", "kabeljauw",
+            "forel", "tilapia", "pangasius", "ansjovis", "sardine",
+            "garnalen", "kreeft", "krab", "scampi", "langoustine",
+            "gamba", "gamba's", "gambas",
+            # Orgaanvlees
+            "lever", "nieren", "niertjes", "hart", "tong",
+        ],
         "alt": "Tofu, tempeh, jackfruit, seitan of peulvruchten",
         "exceptions": ["bloemkool", "nootmuskaat"],
     },
     "vegan": {
-        "triggers": ["vlees", "kip", "kipfilet", "kippenborst", "kippendij",
-                     "rund", "rundvlees", "gehakt", "rundergehakt", "biefstuk",
-                     "ribeye", "ossenhaas", "entrecote", "tartaar",
-                     "varken", "varkensvlees", "varkenshaas", "spek", "ham",
-                     "bacon", "worst", "chorizo", "salami", "prosciutto", "pancetta",
-                     "lam", "lamsvlees", "lamsrack",
-                     "kalkoen", "eend", "wild", "konijn", "hert",
-                     "vis", "zalm", "tonijn", "makreel", "haring",
-                     "kabeljauw", "forel", "tilapia", "pangasius",
-                     "garnalen", "kreeft", "krab", "scampi", "langoustine",
-                     "ansjovis", "sardine",
+        "triggers": [
+            # Algemeen
+            "vlees", "vleesproduct",
+            # Kip & gevogelte
+            "kip", "kipfilet", "kippenborst", "kippendij", "kippendijfilet",
+            "kipdij", "kipdijen", "kippenbouten", "kippenbout", "kippenpoot",
+            "kippenvleugel", "kippenvleugels", "kipvleugel", "kipsate", "kippensate",
+            "hele kip", "kalkoen", "kalkoenfilet", "kalkoendij", "kalkoenborst",
+            "eend", "eendenborst", "eendenbout", "gans", "parelhoen", "fazant",
+            "duif", "kwartel",
+            # Rund
+            "rund", "rundvlees", "rundergehakt", "gehakt",
+            "biefstuk", "ribeye", "rib-eye", "ossenhaas", "entrecote", "tartaar",
+            "rosbief", "bavette", "tomahawk", "draadjesvlees", "stoofvlees",
+            "sucadelap", "kogelbiefstuk", "contrefilet", "runderhaas",
+            "longhaas", "t-bone", "côte de boeuf", "cote de boeuf",
+            "runderrib", "runderrollade",
+            # Kalf
+            "kalf", "kalfsvlees", "kalfsschnitzel", "kalfsfricandeau",
+            "kalfsbiefstuk", "kalfsoester", "kalfsrollade", "kalfsschouder",
+            "kalfskotelet", "kalfsburger",
+            # Varken
+            "varken", "varkensvlees", "varkenshaas", "varkensbuik", "buikspek",
+            "spek", "speklap", "ham", "bacon", "pancetta", "prosciutto",
+            "worst", "braadworst", "rookworst", "metworst", "knakworst",
+            "chorizo", "salami", "leverworst", "bloedworst", "frankfurter",
+            "karbonade", "schouderkarbonade", "ribkarbonade", "kotelet",
+            "spareribs", "sparerib", "pulled pork", "procureur",
+            "varkensschouder", "varkensnek", "rollade",
+            "gehaktbal", "gehaktballen", "hamburger", "slavink",
+            "halfom", "half-om-half",
+            # Lam
+            "lam", "lamsvlees", "lamsrack", "lamsschouder", "lamsbout",
+            "lamskoteletten", "lamsnek", "lamsrib",
+            # Wild & overig
+            "wild", "wildzwijn", "ree", "hert", "haas", "konijn", "eland",
+            "hertenbiefstuk", "hertenstoofvlees",
+            # Vis & zeevruchten
+            "vis", "zalm", "tonijn", "makreel", "haring", "kabeljauw",
+            "forel", "tilapia", "pangasius", "ansjovis", "sardine",
+            "garnalen", "kreeft", "krab", "scampi", "langoustine",
+            "gamba", "gamba's", "gambas",
+            # Orgaanvlees
+            "lever", "nieren", "niertjes", "hart", "tong",
+            # Zuivel & ei (vegan-specifiek)
                      "mascarpone", "mozzarella", "parmezaan", "ricotta", "slagroom",
                      "melk", "room", "boter", "kaas", "kwark", "yoghurt",
                      "ei", "eieren", "eigeel", "eiwit", "mayonaise",
@@ -277,10 +345,21 @@ DIET_MAP = {
         "exceptions": ["bloemkool", "zoete aardappel"],
     },
     "halal": {
-        "triggers": ["varken", "varkensvlees", "varkenshaas", "spek", "ham",
-                     "bacon", "worst", "chorizo", "salami", "prosciutto", "pancetta",
-                     "alcohol", "wijn", "bier", "rum", "cognac", "whisky",
-                     "jenever", "port", "sherry", "marsala", "gelatine"],
+        "triggers": [
+            # Varkensvlees & afgeleide producten
+            "varken", "varkensvlees", "varkenshaas", "varkensbuik", "buikspek",
+            "spek", "speklap", "ham", "bacon", "pancetta", "prosciutto",
+            "worst", "braadworst", "rookworst", "metworst", "knakworst",
+            "chorizo", "salami", "leverworst", "bloedworst", "frankfurter",
+            "karbonade", "schouderkarbonade", "ribkarbonade", "kotelet",
+            "spareribs", "sparerib", "pulled pork", "procureur",
+            "varkensschouder", "varkensnek", "slavink", "halfom", "half-om-half",
+            # Alcohol
+            "alcohol", "wijn", "bier", "rum", "cognac", "whisky",
+            "jenever", "port", "sherry", "marsala",
+            # Overig niet-halal
+            "gelatine", "bloedworst",
+        ],
         "alt": "Halal-variant of plantaardige gelatine (agar-agar)",
         "exceptions": [],
     },
@@ -334,15 +413,24 @@ DIET_MAP = {
                        "suikervrije", "stevia", "erythritol", "xylitol"],
     },
     "koosjer": {
-        "triggers": ["varken", "varkensvlees", "varkenshaas", "spek", "ham",
-                     "bacon", "worst", "chorizo", "salami", "prosciutto",
-                     "pancetta", "lardo", "bloedworst",
-                     "garnalen", "kreeft", "krab", "langoustine", "scampi",
-                     "gamba", "gamba's", "gambas", "crevetten", "homard",
-                     "zeekreeft", "koningskrab", "rivierkreeft",
-                     "inktvis", "pijlinktvis", "octopus", "mossel", "mosselen",
-                     "oester", "oesters", "sint-jakobsschelp", "coquille",
-                     "wulk", "paling", "aal", "haai"],
+        "triggers": [
+            # Varkensvlees & afgeleide producten
+            "varken", "varkensvlees", "varkenshaas", "varkensbuik", "buikspek",
+            "spek", "speklap", "ham", "bacon", "pancetta", "prosciutto", "lardo",
+            "worst", "braadworst", "rookworst", "metworst", "knakworst",
+            "chorizo", "salami", "bloedworst", "frankfurter",
+            "karbonade", "schouderkarbonade", "ribkarbonade", "kotelet",
+            "spareribs", "sparerib", "pulled pork", "procureur",
+            "varkensschouder", "varkensnek", "slavink", "halfom", "half-om-half",
+            # Schaaldieren (niet koosjer)
+            "garnalen", "kreeft", "krab", "langoustine", "scampi",
+            "gamba", "gamba's", "gambas", "crevetten", "homard",
+            "zeekreeft", "koningskrab", "rivierkreeft",
+            # Weekdieren & overige niet-kosjere vis
+            "inktvis", "pijlinktvis", "octopus", "mossel", "mosselen",
+            "oester", "oesters", "sint-jakobsschelp", "coquille",
+            "wulk", "paling", "aal", "haai",
+        ],
         "alt": "Koosjer vlees of plantaardig alternatief",
         "exceptions": [],
     },
