@@ -50,8 +50,9 @@ export default function RecipeAnalyzer() {
   const resultsRef = useRef(null);
 
   useEffect(() => {
-    if (result) {
-      resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (result && resultsRef.current) {
+      const top = resultsRef.current.getBoundingClientRect().top + window.scrollY - 24;
+      window.scrollTo({ top, behavior: "smooth" });
     }
   }, [result]);
 
