@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { createWorker } from "tesseract.js";
 
 // Gesorteerd op populariteit (meest voorkomend eerst)
 const ALLERGENS = [
@@ -50,6 +51,8 @@ export default function RecipeAnalyzer() {
   const [inputMode, setInputMode]               = useState("url");
   const [imageFile, setImageFile]               = useState(null);
   const [imagePreview, setImagePreview]         = useState(null);
+  const [ocrText, setOcrText]                   = useState("");
+  const [ocrLoading, setOcrLoading]             = useState(false);
   const resultsRef = useRef(null);
 
   useEffect(() => {
@@ -71,11 +74,23 @@ export default function RecipeAnalyzer() {
     );
   }
 
-  function handleImageChange(e) {
+  async function handleImageChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
+    setOcrText("");
+    setOcrLoading(true);
+    try {
+      const worker = await createWorker("nld+eng");
+      const { data: { text } } = await worker.recognize(file);
+      await worker.terminate();
+      setOcrText(text.trim());
+    } catch {
+      setOcrText("");
+    } finally {
+      setOcrLoading(false);
+    }
   }
 
   async function handleSubmit(e) {
@@ -100,19 +115,12 @@ export default function RecipeAnalyzer() {
           body: JSON.stringify({ url, user_allergies: selected, user_diets: selectedDiets }),
         });
       } else {
-        if (!imageFile) { setLoading(false); return; }
-        const base64 = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result.split(",")[1]);
-          reader.onerror = reject;
-          reader.readAsDataURL(imageFile);
-        });
-        res = await fetch(`${API_BASE}/analyze-image`, {
+        if (!ocrText.trim()) { setError("Geen tekst gevonden. Probeer een duidelijkere foto."); setLoading(false); return; }
+        res = await fetch(`${API_BASE}/analyze-text`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            image_base64: base64,
-            media_type: imageFile.type || "image/jpeg",
+            text: ocrText,
             user_allergies: selected,
             user_diets: selectedDiets,
           }),
@@ -230,16 +238,17 @@ export default function RecipeAnalyzer() {
                   onChange={handleImageChange}
                 />
               </label>
+
               {imagePreview && (
                 <div className="relative">
                   <img
                     src={imagePreview}
                     alt="Recept preview"
-                    className="w-full rounded-xl object-cover max-h-48"
+                    className="w-full rounded-xl object-cover max-h-36"
                   />
                   <button
                     type="button"
-                    onClick={() => { setImageFile(null); setImagePreview(null); }}
+                    onClick={() => { setImageFile(null); setImagePreview(null); setOcrText(""); }}
                     className="absolute top-2 right-2 rounded-full bg-black/50 p-1
                                text-white hover:bg-black/70 transition"
                     aria-label="Foto verwijderen"
@@ -248,6 +257,28 @@ export default function RecipeAnalyzer() {
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                     </svg>
                   </button>
+                </div>
+              )}
+
+              {ocrLoading && (
+                <p className="flex items-center gap-2 text-sm text-gray-500">
+                  <Spinner /> Tekst lezen uit afbeelding…
+                </p>
+              )}
+
+              {ocrText && !ocrLoading && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">
+                    Herkende tekst — controleer en pas aan indien nodig
+                  </label>
+                  <textarea
+                    value={ocrText}
+                    onChange={(e) => setOcrText(e.target.value)}
+                    rows={6}
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm
+                               focus:border-orange-400 focus:outline-none focus:ring-2
+                               focus:ring-orange-100 transition resize-y"
+                  />
                 </div>
               )}
             </div>
