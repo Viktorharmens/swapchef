@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 // Gesorteerd op populariteit (meest voorkomend eerst)
 const ALLERGENS = [
@@ -47,6 +47,13 @@ export default function RecipeAnalyzer() {
   const [activeModal, setActiveModal]   = useState(null);
   const [showAllAllergens, setShowAllAllergens] = useState(false);
   const [showAllDiets, setShowAllDiets]         = useState(false);
+  const resultsRef = useRef(null);
+
+  useEffect(() => {
+    if (result) {
+      resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [result]);
 
   function toggleAllergen(id) {
     setSelected((prev) =>
@@ -285,7 +292,7 @@ export default function RecipeAnalyzer() {
 
         {/* Results */}
         {result && (
-          <div className="mt-6 rounded-3xl bg-white/60 backdrop-blur-md border border-white/40 p-8 shadow-2xl">
+          <div ref={resultsRef} className="mt-6 rounded-3xl bg-white/60 backdrop-blur-md border border-white/40 p-8 shadow-2xl">
 
             {/* Recipe title + summary */}
             <h2 className="text-2xl font-bold text-gray-800 truncate">
