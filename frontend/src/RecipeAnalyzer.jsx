@@ -112,7 +112,7 @@ export default function RecipeAnalyzer() {
         src="/swapchef-bg.png"
         alt=""
         aria-hidden="true"
-        className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+        className="fixed inset-0 w-full h-full object-cover pointer-events-none -z-10"
       />
 
       <div className="max-w-2xl relative mx-auto sm:mx-0 sm:ml-[50px]">
