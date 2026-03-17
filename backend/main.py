@@ -880,11 +880,12 @@ def check_ingredient(
 # ── Endpoint ─────────────────────────────────────────────────────────────────
 
 @app.post("/analyze", response_model=AnalyzeResponse)
-def analyze_recipe(body: AnalyzeRequest):
+async def analyze_recipe(body: AnalyzeRequest):
     url = str(body.url)
 
     try:
-        response = httpx.get(url, headers=BROWSER_HEADERS, follow_redirects=True, timeout=15)
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=BROWSER_HEADERS, follow_redirects=True, timeout=15)
         response.raise_for_status()
     except httpx.HTTPStatusError as exc:
         raise HTTPException(status_code=502, detail=f"Website gaf fout {exc.response.status_code} terug.")
