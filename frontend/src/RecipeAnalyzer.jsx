@@ -140,7 +140,7 @@ export default function RecipeAnalyzer() {
               required
               placeholder="https://www.allerhande.nl/recept/..."
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              onChange={(e) => { setUrl(e.target.value); setResult(null); setError(null); }}
               className="w-full rounded-xl border border-gray-200 px-4 py-3 pr-10 text-base
                          focus:border-orange-400 focus:outline-none focus:ring-2
                          focus:ring-orange-100 transition"
@@ -148,7 +148,7 @@ export default function RecipeAnalyzer() {
             {url && (
               <button
                 type="button"
-                onClick={() => setUrl("")}
+                onClick={() => { setUrl(""); setResult(null); setError(null); }}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400
                            hover:text-gray-600 transition"
                 aria-label="URL wissen"
