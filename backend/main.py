@@ -336,10 +336,21 @@ DIET_MAP = {
         "exceptions": ["bloemkool", "zoete aardappel"],
     },
     "halal": {
-        "triggers": ["varken", "varkensvlees", "varkenshaas", "spek", "ham",
-                     "bacon", "worst", "chorizo", "salami", "prosciutto", "pancetta",
-                     "alcohol", "wijn", "bier", "rum", "cognac", "whisky",
-                     "jenever", "port", "sherry", "marsala", "gelatine"],
+        "triggers": [
+            # Varkensvlees & afgeleide producten
+            "varken", "varkensvlees", "varkenshaas", "varkensbuik", "buikspek",
+            "spek", "speklap", "ham", "bacon", "pancetta", "prosciutto",
+            "worst", "braadworst", "rookworst", "metworst", "knakworst",
+            "chorizo", "salami", "leverworst", "bloedworst", "frankfurter",
+            "karbonade", "schouderkarbonade", "ribkarbonade", "kotelet",
+            "spareribs", "sparerib", "pulled pork", "procureur",
+            "varkensschouder", "varkensnek", "slavink", "halfom", "half-om-half",
+            # Alcohol
+            "alcohol", "wijn", "bier", "rum", "cognac", "whisky",
+            "jenever", "port", "sherry", "marsala",
+            # Overig niet-halal
+            "gelatine", "bloedworst",
+        ],
         "alt": "Halal-variant of plantaardige gelatine (agar-agar)",
         "exceptions": [],
     },
@@ -393,15 +404,24 @@ DIET_MAP = {
                        "suikervrije", "stevia", "erythritol", "xylitol"],
     },
     "koosjer": {
-        "triggers": ["varken", "varkensvlees", "varkenshaas", "spek", "ham",
-                     "bacon", "worst", "chorizo", "salami", "prosciutto",
-                     "pancetta", "lardo", "bloedworst",
-                     "garnalen", "kreeft", "krab", "langoustine", "scampi",
-                     "gamba", "gamba's", "gambas", "crevetten", "homard",
-                     "zeekreeft", "koningskrab", "rivierkreeft",
-                     "inktvis", "pijlinktvis", "octopus", "mossel", "mosselen",
-                     "oester", "oesters", "sint-jakobsschelp", "coquille",
-                     "wulk", "paling", "aal", "haai"],
+        "triggers": [
+            # Varkensvlees & afgeleide producten
+            "varken", "varkensvlees", "varkenshaas", "varkensbuik", "buikspek",
+            "spek", "speklap", "ham", "bacon", "pancetta", "prosciutto", "lardo",
+            "worst", "braadworst", "rookworst", "metworst", "knakworst",
+            "chorizo", "salami", "bloedworst", "frankfurter",
+            "karbonade", "schouderkarbonade", "ribkarbonade", "kotelet",
+            "spareribs", "sparerib", "pulled pork", "procureur",
+            "varkensschouder", "varkensnek", "slavink", "halfom", "half-om-half",
+            # Schaaldieren (niet koosjer)
+            "garnalen", "kreeft", "krab", "langoustine", "scampi",
+            "gamba", "gamba's", "gambas", "crevetten", "homard",
+            "zeekreeft", "koningskrab", "rivierkreeft",
+            # Weekdieren & overige niet-kosjere vis
+            "inktvis", "pijlinktvis", "octopus", "mossel", "mosselen",
+            "oester", "oesters", "sint-jakobsschelp", "coquille",
+            "wulk", "paling", "aal", "haai",
+        ],
         "alt": "Koosjer vlees of plantaardig alternatief",
         "exceptions": [],
     },
@@ -451,6 +471,23 @@ class AnalyzeResponse(BaseModel):
     unsafe_count: int
     ingredients: list[IngredientResult]
 
+# ── Pre-compile regex patterns at startup ────────────────────────────────────
+
+def _compile_mapping(mapping: dict) -> dict:
+    """Add a pre-compiled regex and exception set to a mapping entry."""
+    triggers = mapping["triggers"]
+    # Sort longest first so more specific terms match before shorter ones
+    sorted_triggers = sorted(triggers, key=len, reverse=True)
+    pattern = re.compile(
+        r"\b(" + "|".join(re.escape(t) for t in sorted_triggers) + r")\b",
+        re.IGNORECASE,
+    )
+    exceptions = set(mapping.get("exceptions", []))
+    return {**mapping, "_pattern": pattern, "_exceptions": exceptions}
+
+ALLERGEN_MAP = {k: _compile_mapping(v) for k, v in ALLERGEN_MAP.items()}
+DIET_MAP     = {k: _compile_mapping(v) for k, v in DIET_MAP.items()}
+
 # ── Allergen checking ────────────────────────────────────────────────────────
 
 def _normalize(text: str) -> str:
@@ -458,15 +495,11 @@ def _normalize(text: str) -> str:
 
 
 def _find_trigger(normalized: str, mapping: dict) -> str | None:
-    """Returns the first matched trigger, or None if excepted or no match."""
-    is_exception = any(exc in normalized for exc in mapping["exceptions"])
-    if is_exception:
+    """Single-pass regex check using pre-compiled pattern."""
+    if any(exc in normalized for exc in mapping["_exceptions"]):
         return None
-    for trigger in mapping["triggers"]:
-        pattern = rf"\b{re.escape(trigger)}\b"
-        if re.search(pattern, normalized):
-            return trigger
-    return None
+    m = mapping["_pattern"].search(normalized)
+    return m.group(1).lower() if m else None
 
 
 def _get_alternative(trigger: str, mapping: dict) -> str:
