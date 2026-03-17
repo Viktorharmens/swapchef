@@ -317,6 +317,8 @@ _VLEES = [
     "hamreepje", "hamreepjes",
     "hamblok",
     "gekookte ham", "gerookte ham",
+    "parmaham", "serranoham", "bayonneham", "kookham", "rookham",
+    "landham", "boerenham", "achterham", "voorham",
     "bacon", "baconreepje", "baconreepjes", "baconblokjes",
     "pancetta",
     "prosciutto", "prosciutto crudo", "prosciutto cotto",
