@@ -239,7 +239,7 @@ _VLEES = [
     "kalfskotelet", "kalfsburger",
     # Varken
     "varken", "varkensvlees", "varkenshaas", "varkensbuik", "buikspek",
-    "spek", "speklap", "ham", "bacon", "pancetta", "prosciutto", "mortadella",
+    "spek", "speklap", "spekreepjes", "ham", "bacon", "pancetta", "prosciutto", "mortadella",
     "worst", "braadworst", "rookworst", "metworst", "knakworst",
     "chorizo", "salami", "leverworst", "bloedworst", "frankfurter",
     "karbonade", "schouderkarbonade", "ribkarbonade", "kotelet",
