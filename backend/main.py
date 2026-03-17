@@ -153,11 +153,23 @@ ALLERGEN_MAP = {
     },
     # ── EU-allergenen (aanvullend op de 14 verplichte) ────────────────────────
     "vis": {
-        "triggers": ["vis", "zalm", "tonijn", "makreel", "haring", "kabeljauw",
-                     "forel", "tilapia", "pangasius", "ansjovis", "sardine",
-                     "bot", "zeetong", "schol", "heilbot", "tarbot", "zeebaars",
-                     "baars", "paling", "aal", "spiering", "snoekbaars",
-                     "vissaus", "worcestershiresaus", "anchovy", "anchovypasta"],
+        "triggers": [
+            # Zoetwatervis
+            "forel", "zalm", "snoekbaars", "snoek", "baars", "karper",
+            "paling", "aal", "spiering", "meerval", "brasem",
+            # Zeevis
+            "vis", "kabeljauw", "haring", "makreel", "tonijn", "sardine",
+            "ansjovis", "tilapia", "pangasius", "bot", "zeetong", "schol",
+            "heilbot", "tarbot", "zeebaars", "griet", "mul", "harder",
+            "zeekarper", "zeebarbeel", "wijting", "schelvis", "pollak",
+            "leng", "koolvis", "rog", "haai", "zwaardvis", "tongschar",
+            "dorade", "zeebrasem", "roodbaars",
+            # Gerookt/gezouten
+            "gerookte zalm", "gerookte makreel", "gerookte haring",
+            "bokking", "rollmops", "ansjovisfilet",
+            # Sauzen & pasta's met vis
+            "vissaus", "worcestershiresaus", "anchovypasta", "anchovy",
+        ],
         "alt": "Tofu, jackfruit of bloemkool",
         "exceptions": [],
     },
@@ -202,40 +214,87 @@ ALLERGEN_MAP = {
     },
 }
 
+# ── Gedeelde vlees- en vislijsten ────────────────────────────────────────────
+
+_VLEES = [
+    # Algemeen
+    "vlees", "vleesproduct",
+    # Kip & gevogelte
+    "kip", "kipfilet", "kippenborst", "kippendij", "kippendijfilet",
+    "kipdij", "kipdijen", "kippenbouten", "kippenbout", "kippenpoot",
+    "kippenvleugel", "kippenvleugels", "kipvleugel", "kipsate", "kippensate",
+    "hele kip", "kalkoen", "kalkoenfilet", "kalkoendij", "kalkoenborst",
+    "eend", "eendenborst", "eendenbout", "gans", "parelhoen", "fazant",
+    "duif", "kwartel",
+    # Rund
+    "rund", "rundvlees", "gehakt", "rundergehakt",
+    "biefstuk", "ribeye", "rib-eye", "ossenhaas", "entrecote", "tartaar",
+    "rosbief", "bavette", "tomahawk", "draadjesvlees", "stoofvlees",
+    "sucadelap", "kogelbiefstuk", "contrefilet", "runderhaas",
+    "longhaas", "t-bone", "côte de boeuf", "cote de boeuf",
+    "runderrib", "runderrollade",
+    # Kalf
+    "kalf", "kalfsvlees", "kalfsschnitzel", "kalfsfricandeau",
+    "kalfsbiefstuk", "kalfsoester", "kalfsrollade", "kalfsschouder",
+    "kalfskotelet", "kalfsburger",
+    # Varken
+    "varken", "varkensvlees", "varkenshaas", "varkensbuik", "buikspek",
+    "spek", "speklap", "ham", "bacon", "pancetta", "prosciutto", "mortadella",
+    "worst", "braadworst", "rookworst", "metworst", "knakworst",
+    "chorizo", "salami", "leverworst", "bloedworst", "frankfurter",
+    "karbonade", "schouderkarbonade", "ribkarbonade", "kotelet",
+    "spareribs", "sparerib", "pulled pork", "procureur",
+    "varkensschouder", "varkensnek", "rollade",
+    "gehaktbal", "gehaktballen", "hamburger", "slavink",
+    "halfom", "half-om-half",
+    # Lam
+    "lam", "lamsvlees", "lamsgehakt", "lamsrack", "lamsschouder", "lamsbout",
+    "lamskoteletten", "lamsnek", "lamsrib",
+    # Wild
+    "wild", "wildzwijn", "ree", "hert", "haas", "konijn", "eland",
+    "hertenbiefstuk", "hertenstoofvlees",
+    # Orgaanvlees
+    "lever", "nieren", "niertjes", "hart", "tong",
+]
+
+_VIS = [
+    # Zoetwatervis
+    "forel", "zalm", "snoekbaars", "snoek", "baars", "karper",
+    "paling", "aal", "spiering", "meerval", "brasem",
+    # Zeevis
+    "vis", "kabeljauw", "haring", "makreel", "tonijn", "sardine",
+    "ansjovis", "tilapia", "pangasius", "bot", "zeetong", "schol",
+    "heilbot", "tarbot", "zeebaars", "griet", "mul", "harder",
+    "zeekarper", "zeebarbeel", "wijting", "schelvis", "pollak",
+    "leng", "koolvis", "rog", "haai", "zwaardvis", "tongschar",
+    "dorade", "zeebrasem", "roodbaars",
+    # Gerookt/gezouten
+    "gerookte zalm", "gerookte makreel", "gerookte haring",
+    "bokking", "rollmops", "ansjovisfilet",
+    # Sauzen & pasta's met vis
+    "vissaus", "worcestershiresaus", "anchovypasta", "anchovy",
+    # Schaaldieren
+    "garnalen", "kreeft", "krab", "scampi", "langoustine",
+    "gamba", "gamba's", "gambas", "crevetten", "homard",
+    "zeekreeft", "koningskrab", "rivierkreeft", "noordzeegarnaal",
+]
+
 # ── Diet mapping ─────────────────────────────────────────────────────────────
 
 DIET_MAP = {
     "vegetarisch": {
-        "triggers": ["vlees", "kip", "kipfilet", "kippenborst", "kippendij", "kippendijfilet"
-                     "rund", "rundvlees", "gehakt", "rundergehakt", "biefstuk",
-                     "ribeye", "ossenhaas", "entrecote", "tartaar",
-                     "varken", "varkensvlees", "varkenshaas", "spek", "ham",
-                     "bacon", "worst", "chorizo", "salami", "prosciutto", "pancetta",
-                     "lam", "lamsvlees", "lamsrack", "lamsschouder",
-                     "kalkoen", "eend", "wild", "konijn", "hert",
-                     "vis", "zalm", "tonijn", "makreel", "haring",
-                     "kabeljauw", "forel", "tilapia", "pangasius",
-                     "garnalen", "kreeft", "krab", "scampi", "langoustine",
-                     "ansjovis", "gamba", "gamba's", "gambas", "sardine"],
+        "triggers": _VLEES + _VIS,
         "alt": "Tofu, tempeh, jackfruit, seitan of peulvruchten",
         "exceptions": ["bloemkool", "nootmuskaat"],
     },
     "vegan": {
-        "triggers": ["vlees", "kip", "kipfilet", "kippenborst", "kippendij",
-                     "rund", "rundvlees", "gehakt", "rundergehakt", "biefstuk",
-                     "ribeye", "ossenhaas", "entrecote", "tartaar",
-                     "varken", "varkensvlees", "varkenshaas", "spek", "ham",
-                     "bacon", "worst", "chorizo", "salami", "prosciutto", "pancetta",
-                     "lam", "lamsvlees", "lamsrack",
-                     "kalkoen", "eend", "wild", "konijn", "hert",
-                     "vis", "zalm", "tonijn", "makreel", "haring",
-                     "kabeljauw", "forel", "tilapia", "pangasius",
-                     "garnalen", "kreeft", "krab", "scampi", "langoustine",
-                     "ansjovis", "sardine",
-                     "mascarpone", "mozzarella", "parmezaan", "ricotta", "slagroom",
-                     "melk", "room", "boter", "kaas", "kwark", "yoghurt",
-                     "ei", "eieren", "eigeel", "eiwit", "mayonaise",
-                     "honing", "gelatine"],
+        "triggers": _VLEES + _VIS + [
+            # Zuivel & ei
+            "mascarpone", "mozzarella", "parmezaan", "ricotta", "slagroom",
+            "melk", "room", "boter", "kaas", "kwark", "yoghurt",
+            "ei", "eieren", "eigeel", "eiwit", "mayonaise",
+            "honing", "gelatine",
+        ],
         "alt": "Plantaardig alternatief (tofu, sojamelk, lijnzaad-ei, agave)",
         "alt_map": {
             "melk":      "Havermelk, sojamelk of amandelmelk",
