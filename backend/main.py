@@ -551,7 +551,12 @@ DIET_MAP = {
     "vegetarisch": {
         "triggers": _VLEES + _VIS,
         "alt": "Tofu, tempeh, jackfruit, seitan of peulvruchten",
-        "exceptions": ["bloemkool", "nootmuskaat"],
+        "exceptions": [
+            "bloemkool", "nootmuskaat",
+            # "gehakt" als bereidingswijze (fijnsnijden), niet als vleessoort
+            "grof gehakt", "fijn gehakt", "fijngehakt", "middelfijn gehakt",
+            "grof gehakt", ", gehakt",
+        ],
     },
     "vegan": {
         "triggers": _VLEES + _VIS + [
@@ -582,8 +587,13 @@ DIET_MAP = {
             "honing":    "Agavesiroop of ahornsiroop",
             "gelatine":  "Agar-agar (plantaardig geleermiddel)",
         },
-        "exceptions": ["bloemkool", "nootmuskaat", "kokosmelk", "amandelmelk",
-                       "havermelk", "sojamelk", "kokosroom", "kokosboter"],
+        "exceptions": [
+            "bloemkool", "nootmuskaat", "kokosmelk", "amandelmelk",
+            "havermelk", "sojamelk", "kokosroom", "kokosboter",
+            # "gehakt" als bereidingswijze (fijnsnijden), niet als vleessoort
+            "grof gehakt", "fijn gehakt", "fijngehakt", "middelfijn gehakt",
+            "grof gehakt", ", gehakt",
+        ],
     },
     "keto": {
         "triggers": ["suiker", "basterdsuiker", "poedersuiker", "rietsuiker",
@@ -737,19 +747,53 @@ class AnalyzeResponse(BaseModel):
     unsafe_count: int
     ingredients: list[IngredientResult]
 
+# ── Samengestelde-woorden valse positieven ───────────────────────────────────
+# Woorden die beginnen met een trigger maar geen vlees/vis zijn.
+# Gebruikt bij de prefix-match om valse positieven te filteren.
+
+_COMPOUND_FP = {
+    # bot (vis) → boter, boterham, boterbloem
+    "boter", "roomboter", "kokosboter", "plantaardige boter",
+    "boterham", "boterhammen", "boterbloem",
+    # rog (vis) → rogge, roggebrood
+    "rogge", "roggebrood", "roggebloem",
+    # aal (vis) → aalbes, aalbessen (bessen/fruit)
+    "aalbes", "aalbessen", "aalbessensap",
+    # kop (orgaanvlees) → kopje/kopjes (maateenheid)
+    "kopje", "kopjes",
+    # pos (vis) → postelein (groente)
+    "postelein",
+    # wild (wild) → wilde (bijvoeglijk naamwoord: wilde rucola, wilde knoflook)
+    "wilde",
+    # hart (orgaanvlees) → hartig/hartige (bijvoeglijk naamwoord: hartige taart)
+    "hartig", "hartige",
+    # harder (vis) → harder (vergrotende trap bijvoeglijk naamwoord)
+    "harder",
+    # lam (lam) → lamp, lampen
+    "lamp", "lampen",
+}
+
 # ── Pre-compile regex patterns at startup ────────────────────────────────────
 
 def _compile_mapping(mapping: dict) -> dict:
-    """Add a pre-compiled regex and exception set to a mapping entry."""
+    """Add pre-compiled regex patterns and exception set to a mapping entry."""
     triggers = mapping["triggers"]
-    # Sort longest first so more specific terms match before shorter ones
     sorted_triggers = sorted(triggers, key=len, reverse=True)
+    escaped = [re.escape(t) for t in sorted_triggers]
+
+    # Patroon 1: exact woordgrens aan beide kanten (geen valse positieven)
     pattern = re.compile(
-        r"\b(" + "|".join(re.escape(t) for t in sorted_triggers) + r")\b",
+        r"\b(" + "|".join(escaped) + r")\b",
+        re.IGNORECASE,
+    )
+    # Patroon 2: alleen linker woordgrens (vangt samenstellingen zoals "kipreepjes")
+    prefix_pattern = re.compile(
+        r"\b(" + "|".join(escaped) + r")",
         re.IGNORECASE,
     )
     exceptions = set(mapping.get("exceptions", []))
-    return {**mapping, "_pattern": pattern, "_exceptions": exceptions}
+    return {**mapping, "_pattern": pattern, "_prefix_pattern": prefix_pattern,
+            "_exceptions": exceptions}
 
 ALLERGEN_MAP = {k: _compile_mapping(v) for k, v in ALLERGEN_MAP.items()}
 DIET_MAP     = {k: _compile_mapping(v) for k, v in DIET_MAP.items()}
@@ -761,11 +805,28 @@ def _normalize(text: str) -> str:
 
 
 def _find_trigger(normalized: str, mapping: dict) -> str | None:
-    """Single-pass regex check using pre-compiled pattern."""
+    """Twee stappen: eerst exacte woordgrens-match, dan prefix-match voor samenstellingen."""
     if any(exc in normalized for exc in mapping["_exceptions"]):
         return None
+
+    # Stap 1: exacte match (bijv. "kip", "zalm")
     m = mapping["_pattern"].search(normalized)
-    return m.group(1).lower() if m else None
+    if m:
+        return m.group(1).lower()
+
+    # Stap 2: prefix-match voor samengestelde woorden (bijv. "kipreepjes", "zalmstukjes")
+    m = mapping["_prefix_pattern"].search(normalized)
+    if m:
+        # Extraheer het volledige samengestelde woord om valse positieven te filteren
+        i = m.end()
+        while i < len(normalized) and (normalized[i].isalpha() or normalized[i] in "-'"):
+            i += 1
+        full_word = normalized[m.start():i]
+        if full_word in _COMPOUND_FP:
+            return None
+        return m.group(1).lower()
+
+    return None
 
 
 def _get_alternative(trigger: str, mapping: dict) -> str:
