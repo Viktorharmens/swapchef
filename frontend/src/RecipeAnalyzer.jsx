@@ -114,8 +114,6 @@ export default function RecipeAnalyzer() {
         aria-hidden="true"
         className="absolute inset-0 w-full h-full object-cover pointer-events-none"
       />
-      {/* Dark overlay for readability */}
-      <div className="absolute inset-0 bg-black/40 pointer-events-none" />
 
       <div className="max-w-2xl relative mx-auto sm:mx-0 sm:ml-[50px]">
 
