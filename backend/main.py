@@ -206,6 +206,18 @@ ALLERGEN_MAP = {
 
 DIET_MAP = {
     "vegetarisch": {
+        "triggers": ["vlees", "kip", "kipfilet", "kippenborst", "kippendij", "kippendijfilet"
+                     "rund", "rundvlees", "gehakt", "rundergehakt", "biefstuk",
+                     "ribeye", "ossenhaas", "entrecote", "tartaar",
+                     "varken", "varkensvlees", "varkenshaas", "spek", "ham",
+                     "bacon", "worst", "chorizo", "salami", "prosciutto", "pancetta",
+                     "mortadella",
+                     "lam", "lamsvlees", "lamsrack", "lamsschouder", "lamsgehakt",
+                     "kalkoen", "eend", "wild", "konijn", "hert",
+                     "vis", "zalm", "tonijn", "makreel", "haring",
+                     "kabeljauw", "forel", "tilapia", "pangasius",
+                     "garnalen", "kreeft", "krab", "scampi", "langoustine",
+                     "ansjovis", "gamba", "gamba's", "gambas", "sardine"],
         "triggers": [
             # Algemeen
             "vlees", "vleesproduct",
@@ -255,6 +267,18 @@ DIET_MAP = {
         "exceptions": ["bloemkool", "nootmuskaat"],
     },
     "vegan": {
+        "triggers": ["vlees", "kip", "kipfilet", "kippenborst", "kippendij",
+                     "rund", "rundvlees", "gehakt", "rundergehakt", "biefstuk",
+                     "ribeye", "ossenhaas", "entrecote", "tartaar",
+                     "varken", "varkensvlees", "varkenshaas", "spek", "ham",
+                     "bacon", "worst", "chorizo", "salami", "prosciutto", "pancetta",
+                     "mortadella",
+                     "lam", "lamsvlees", "lamsrack", "lamsgehakt",
+                     "kalkoen", "eend", "wild", "konijn", "hert",
+                     "vis", "zalm", "tonijn", "makreel", "haring",
+                     "kabeljauw", "forel", "tilapia", "pangasius",
+                     "garnalen", "kreeft", "krab", "scampi", "langoustine",
+                     "ansjovis", "sardine",
         "triggers": [
             # Algemeen
             "vlees", "vleesproduct",
