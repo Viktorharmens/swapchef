@@ -35,7 +35,7 @@ const DIETS = [
 const MOBILE_ALLERGEN_LIMIT = 6;
 const MOBILE_DIET_LIMIT = 5;
 
-const API_BASE = "https://swapchef-backend.onrender.com";
+const API_BASE = "https://api.swapchef.nl";
 
 export default function RecipeAnalyzer() {
   const [url, setUrl]                   = useState("");
