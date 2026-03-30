@@ -16,3 +16,7 @@ frontend/dist/
 # Misc
 .DS_Store
 *.local
+
+# Capacitor native projects (generated, not tracked)
+frontend/android/
+frontend/ios/
