@@ -12,8 +12,8 @@ export default defineConfig({
         name: "SwapChef",
         short_name: "SwapChef",
         description: "Vervang ingrediënten op basis van jouw dieet en allergieën",
-        theme_color: "#e8401c",
-        background_color: "#ffffff",
+        theme_color: "#FA4D00",
+        background_color: "#FA4D00",
         display: "standalone",
         orientation: "portrait",
         start_url: "/",
@@ -22,6 +22,7 @@ export default defineConfig({
             src: "icons/icon-192.png",
             sizes: "192x192",
             type: "image/png",
+            purpose: "any maskable",
           },
           {
             src: "icons/icon-512.png",
