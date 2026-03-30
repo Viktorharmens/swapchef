@@ -19,11 +19,14 @@ app = FastAPI(title="Smart Recipe Substitute API")
 
 app.add_middleware(
     CORSMiddleware,
-       allow_origins=[
+    allow_origins=[
         "http://localhost:5173",
         "http://localhost:3000",
         "https://swapchef.nl",
         "https://www.swapchef.nl",
+        "capacitor://localhost",
+        "https://localhost",
+        "http://localhost",
     ],
     allow_methods=["POST"],
     allow_headers=["*"],
