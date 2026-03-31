@@ -501,12 +501,15 @@ function Modal({ onClose, children }) {
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={onClose}
+      onTouchMove={(e) => e.preventDefault()}
+      style={{ overscrollBehavior: "contain" }}
     >
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
         className="relative max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-3xl
                    bg-white p-8 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
