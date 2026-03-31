@@ -1,0 +1,18 @@
+name: Deploy
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  deploy:
+    name: Deploy naar Coolify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Coolify deploy
+        run: |
+          curl -s -o /dev/null -w "%{http_code}" \
+            "${{ secrets.COOLIFY_WEBHOOK_URL }}" | grep -q "^2" \
+            && echo "Deploy getriggerd." \
+            || (echo "Deploy mislukt." && exit 1)

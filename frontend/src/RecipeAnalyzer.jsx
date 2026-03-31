@@ -52,7 +52,29 @@ export default function RecipeAnalyzer() {
   const [activeModal, setActiveModal]   = useState(null);
   const [showAllAllergens, setShowAllAllergens] = useState(false);
   const [showAllDiets, setShowAllDiets]         = useState(false);
+  const [showInfo, setShowInfo]                 = useState(false);
+  const [dragY, setDragY]                       = useState(0);
+  const [isDragging, setIsDragging]             = useState(false);
+  const dragStartY = useRef(0);
   const resultsRef = useRef(null);
+
+  function handleDragStart(e) {
+    dragStartY.current = e.touches[0].clientY;
+    setIsDragging(true);
+  }
+
+  function handleDragMove(e) {
+    const delta = e.touches[0].clientY - dragStartY.current;
+    if (delta > 0) setDragY(delta);
+  }
+
+  function handleDragEnd() {
+    setIsDragging(false);
+    if (dragY > 100) {
+      setShowInfo(false);
+    }
+    setDragY(0);
+  }
 
   useEffect(() => {
     if (result && resultsRef.current) {
@@ -120,13 +142,78 @@ export default function RecipeAnalyzer() {
         className="fixed inset-0 w-full h-full object-cover pointer-events-none -z-10 hidden sm:block"
       />
 
+      {/* Bottom sheet — mobile/PWA only */}
+      <div
+        className={`fixed inset-0 z-50 sm:hidden transition-opacity duration-300
+                    ${showInfo ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+        onClick={() => setShowInfo(false)}
+      >
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+        <div
+          className={`absolute bottom-0 inset-x-0 rounded-t-3xl bg-white px-6 pt-4 pb-10
+                      shadow-2xl
+                      ${isDragging ? "" : "transition-transform duration-300 ease-out"}
+                      ${showInfo ? "translate-y-0" : "translate-y-full"}`}
+          style={{ transform: showInfo ? `translateY(${dragY}px)` : "translateY(100%)" }}
+          onClick={(e) => e.stopPropagation()}
+          onTouchStart={handleDragStart}
+          onTouchMove={handleDragMove}
+          onTouchEnd={handleDragEnd}
+        >
+          {/* Drag handle */}
+          <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
+
+          {/* How it works */}
+          <h2 className="text-lg font-bold text-gray-900 mb-2">Hoe werkt SwapChef?</h2>
+          <p className="text-sm text-gray-600 leading-relaxed">
+            Plak een recept-URL van een site zoals Allerhande of Leukerecepten,
+            kies jouw allergieën of dieetwensen en SwapChef analyseert automatisch
+            de ingrediënten. Onveilige ingrediënten krijgen een slim alternatief —
+            afgestemd op jouw situatie.
+          </p>
+
+          <hr className="my-5 border-gray-100" />
+
+          {/* Legal */}
+          <div className="flex items-center justify-between text-sm text-gray-500">
+            <span>© {new Date().getFullYear()} SwapChef</span>
+            <div className="flex gap-4">
+              <button
+                onClick={() => { setShowInfo(false); setActiveModal("disclaimer"); }}
+                className="underline underline-offset-2 hover:text-gray-800 transition"
+              >
+                Disclaimer
+              </button>
+              <button
+                onClick={() => { setShowInfo(false); setActiveModal("privacy"); }}
+                className="underline underline-offset-2 hover:text-gray-800 transition"
+              >
+                Privacy
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* App wrapper — roze achtergrond alleen op mobiel als blok, op desktop transparant links */}
       <div className="min-h-screen max-w-lg mx-auto sm:mx-0 sm:ml-[60px] sm:min-h-0 sm:max-w-[42rem] sm:mt-8 sm:rounded-3xl overflow-hidden"
            style={{ backgroundColor: "#fbeee9" }}>
 
-        {/* Top navbar */}
-        <div className="px-5 py-3 bg-white/80 backdrop-blur-sm shadow-sm">
+        {/* Top navbar — logo links, ⓘ knop rechts (alleen mobiel) */}
+        <div className="px-5 py-3 bg-white/80 backdrop-blur-sm shadow-sm flex items-center justify-between">
           <img src="/logo.png" alt="SwapChef" className="h-14 w-auto" />
+          <button
+            type="button"
+            onClick={() => setShowInfo(true)}
+            className="sm:hidden w-10 h-10 rounded-full flex items-center justify-center
+                       text-gray-400 hover:text-gray-500 transition"
+            aria-label="Informatie"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none"
+                 viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+            </svg>
+          </button>
         </div>
 
       <div className="px-5 pb-10">
@@ -378,8 +465,8 @@ export default function RecipeAnalyzer() {
           </div>
         )}
 
-        {/* Footer */}
-        <footer className="mt-10 pb-6 text-center text-sm text-gray-400">
+        {/* Footer — desktop only */}
+        <footer className="hidden sm:block mt-10 pb-6 text-center text-sm text-gray-400">
           <p>© {new Date().getFullYear()} SwapChef. Alle rechten voorbehouden.</p>
           <div className="mt-1 flex justify-center gap-4">
             <button
