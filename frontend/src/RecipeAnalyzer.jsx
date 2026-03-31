@@ -53,7 +53,28 @@ export default function RecipeAnalyzer() {
   const [showAllAllergens, setShowAllAllergens] = useState(false);
   const [showAllDiets, setShowAllDiets]         = useState(false);
   const [showInfo, setShowInfo]                 = useState(false);
+  const [dragY, setDragY]                       = useState(0);
+  const [isDragging, setIsDragging]             = useState(false);
+  const dragStartY = useRef(0);
   const resultsRef = useRef(null);
+
+  function handleDragStart(e) {
+    dragStartY.current = e.touches[0].clientY;
+    setIsDragging(true);
+  }
+
+  function handleDragMove(e) {
+    const delta = e.touches[0].clientY - dragStartY.current;
+    if (delta > 0) setDragY(delta);
+  }
+
+  function handleDragEnd() {
+    setIsDragging(false);
+    if (dragY > 100) {
+      setShowInfo(false);
+    }
+    setDragY(0);
+  }
 
   useEffect(() => {
     if (result && resultsRef.current) {
@@ -130,9 +151,14 @@ export default function RecipeAnalyzer() {
         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
         <div
           className={`absolute bottom-0 inset-x-0 rounded-t-3xl bg-white px-6 pt-4 pb-10
-                      shadow-2xl transition-transform duration-300 ease-out
+                      shadow-2xl
+                      ${isDragging ? "" : "transition-transform duration-300 ease-out"}
                       ${showInfo ? "translate-y-0" : "translate-y-full"}`}
+          style={{ transform: showInfo ? `translateY(${dragY}px)` : "translateY(100%)" }}
           onClick={(e) => e.stopPropagation()}
+          onTouchStart={handleDragStart}
+          onTouchMove={handleDragMove}
+          onTouchEnd={handleDragEnd}
         >
           {/* Drag handle */}
           <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
