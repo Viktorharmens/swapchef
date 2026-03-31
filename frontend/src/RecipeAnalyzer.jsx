@@ -47,6 +47,7 @@ export default function RecipeAnalyzer() {
   const [activeModal, setActiveModal]   = useState(null);
   const [showAllAllergens, setShowAllAllergens] = useState(false);
   const [showAllDiets, setShowAllDiets]         = useState(false);
+  const [showInfo, setShowInfo]                 = useState(false);
   const resultsRef = useRef(null);
 
   useEffect(() => {
@@ -114,6 +115,71 @@ export default function RecipeAnalyzer() {
         aria-hidden="true"
         className="fixed inset-0 w-full h-full object-cover pointer-events-none -z-10"
       />
+
+      {/* ⓘ Button — mobile/PWA only */}
+      <button
+        type="button"
+        onClick={() => setShowInfo(true)}
+        className="fixed top-4 right-4 z-40 sm:hidden w-9 h-9 rounded-full
+                   bg-white/70 backdrop-blur-sm border border-white/40 shadow-md
+                   flex items-center justify-center text-gray-600
+                   hover:text-gray-900 transition"
+        aria-label="Informatie"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none"
+             viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round"
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </button>
+
+      {/* Bottom sheet — mobile/PWA only */}
+      <div
+        className={`fixed inset-0 z-50 sm:hidden transition-opacity duration-300
+                    ${showInfo ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+        onClick={() => setShowInfo(false)}
+      >
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+        <div
+          className={`absolute bottom-0 inset-x-0 rounded-t-3xl bg-white px-6 pt-4 pb-10
+                      shadow-2xl transition-transform duration-300 ease-out
+                      ${showInfo ? "translate-y-0" : "translate-y-full"}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Drag handle */}
+          <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
+
+          {/* How it works */}
+          <h2 className="text-lg font-bold text-gray-900 mb-2">Hoe werkt SwapChef?</h2>
+          <p className="text-sm text-gray-600 leading-relaxed">
+            Plak een recept-URL van een site zoals Allerhande of Leukerecepten,
+            kies jouw allergieën of dieetwensen en SwapChef analyseert automatisch
+            de ingrediënten. Onveilige ingrediënten krijgen een slim alternatief —
+            afgestemd op jouw situatie.
+          </p>
+
+          <hr className="my-5 border-gray-100" />
+
+          {/* Legal */}
+          <div className="flex items-center justify-between text-sm text-gray-500">
+            <span>© {new Date().getFullYear()} SwapChef</span>
+            <div className="flex gap-4">
+              <button
+                onClick={() => { setShowInfo(false); setActiveModal("disclaimer"); }}
+                className="underline underline-offset-2 hover:text-gray-800 transition"
+              >
+                Disclaimer
+              </button>
+              <button
+                onClick={() => { setShowInfo(false); setActiveModal("privacy"); }}
+                className="underline underline-offset-2 hover:text-gray-800 transition"
+              >
+                Privacy
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="max-w-2xl relative mx-auto sm:mx-0 sm:ml-[50px]">
 
@@ -363,8 +429,8 @@ export default function RecipeAnalyzer() {
           </div>
         )}
 
-        {/* Footer */}
-        <footer className="mt-10 pb-6 text-center text-sm text-white/70">
+        {/* Footer — desktop only */}
+        <footer className="hidden sm:block mt-10 pb-6 text-center text-sm text-white/70">
         <p>© {new Date().getFullYear()} SwapChef. Alle rechten voorbehouden.</p>
         <div className="mt-1 flex justify-center gap-4">
           <button
