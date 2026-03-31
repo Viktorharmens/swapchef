@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 
 // Gesorteerd op populariteit (meest voorkomend eerst)
 const ALLERGENS = [
@@ -38,6 +38,11 @@ const MOBILE_DIET_LIMIT = 5;
 const API_BASE = "https://api.swapchef.nl";
 
 export default function RecipeAnalyzer() {
+  const isPWA = useMemo(() =>
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true,
+  []);
+
   const [url, setUrl]                   = useState("");
   const [selected, setSelected]         = useState([]);
   const [selectedDiets, setSelectedDiets] = useState([]);
@@ -105,17 +110,19 @@ export default function RecipeAnalyzer() {
   const unsafeIngredients = result?.ingredients.filter((i) => i.is_unsafe)   ?? [];
 
   return (
-    <div className="min-h-screen px-4 py-10 relative overflow-hidden">
+    <div className={`min-h-screen relative overflow-hidden ${isPWA ? "px-4 py-10" : "px-4 py-10 sm:py-16"}`}>
 
-      {/* Background photo */}
-      <img
-        src="/swapchef-bg.png"
-        alt=""
-        aria-hidden="true"
-        className="fixed inset-0 w-full h-full object-cover pointer-events-none -z-10"
-      />
+      {/* Background photo — alleen op desktop browser */}
+      {!isPWA && (
+        <img
+          src="/swapchef-bg.png"
+          alt=""
+          aria-hidden="true"
+          className="fixed inset-0 w-full h-full object-cover pointer-events-none -z-10 hidden sm:block"
+        />
+      )}
 
-      <div className="max-w-2xl relative mx-auto sm:mx-0 sm:ml-[50px]">
+      <div className={`max-w-2xl relative ${isPWA ? "mx-auto" : "mx-auto sm:mx-0 sm:ml-[50px]"}`}>
 
         {/* Form card */}
         <form
