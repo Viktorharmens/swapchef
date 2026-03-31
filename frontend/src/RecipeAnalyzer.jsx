@@ -497,12 +497,6 @@ export default function RecipeAnalyzer() {
 }
 
 function Modal({ onClose, children }) {
-  useEffect(() => {
-    const prevent = (e) => e.preventDefault();
-    document.body.addEventListener("touchmove", prevent, { passive: false });
-    return () => document.body.removeEventListener("touchmove", prevent);
-  }, []);
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
