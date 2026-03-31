@@ -15,5 +15,13 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      window.addEventListener('beforeinstallprompt', function () {
+        if (window.umami) umami.track('pwa-prompt-shown');
+      });
+      window.addEventListener('appinstalled', function () {
+        if (window.umami) umami.track('pwa-installed');
+      });
+    </script>
   </body>
 </html>
