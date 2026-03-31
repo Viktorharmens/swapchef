@@ -211,9 +211,10 @@ export default function RecipeAnalyzer() {
             aria-label="Informatie"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none"
-                 viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round"
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                 viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round">
+              <circle cx="12" cy="12" r="10" />
+              <circle cx="12" cy="8" r="0.5" fill="currentColor" stroke="none" />
+              <line x1="12" y1="11.5" x2="12" y2="17" />
             </svg>
           </button>
         </div>
