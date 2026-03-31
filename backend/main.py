@@ -36,7 +36,8 @@ app.add_middleware(
 
 ALLERGEN_MAP = {
     "lactose": {
-        "triggers": ["roomboter", "karnemelk", "slagroom", "crème fraîche", "creme fraiche",
+        "triggers": ["roomboter bladerdeeg", "boter bladerdeeg",
+                     "roomboter", "karnemelk", "slagroom", "crème fraîche", "creme fraiche",
                      "mascarpone", "mozzarella", "parmezaan", "parmesan", "pecorino",
                      "ricotta", "roomkaas", "burrata",
                      "brie", "camembert", "gorgonzola", "feta", "cheddar",
@@ -47,10 +48,12 @@ ALLERGEN_MAP = {
         "alt_map": {
             "melk":          "Havermelk, sojamelk of amandelmelk",
             "room":          "Kokosroom of haverroom",
-            "slagroom":      "Kokosslagroom of plantaardige slagroom (bijv. haver of soja)",
-            "boter":         "Plantaardige boter (bijv. Becel) of kokosolie",
-            "roomboter":     "Plantaardige boter (bijv. Becel) of kokosolie",
-            "ghee":          "Kokosolie of plantaardige boter",
+            "slagroom":           "Kokosslagroom of plantaardige slagroom (bijv. haver of soja)",
+            "boter":              "Plantaardige boter (bijv. Becel) of kokosolie",
+            "roomboter":          "Plantaardige boter (bijv. Becel) of kokosolie",
+            "roomboter bladerdeeg": "Lactosevrij bladerdeeg of plantaardig bladerdeeg (bijv. JUS-ROL of Tante Fanny)",
+            "boter bladerdeeg":   "Lactosevrij bladerdeeg of plantaardig bladerdeeg (bijv. JUS-ROL of Tante Fanny)",
+            "ghee":               "Kokosolie of plantaardige boter",
             "yoghurt":       "Sojamelkyoghurt, kokosyoghurt of havermelkyoghurt",
             "kwark":         "Sojakwark of kokosmilk-kwark",
             "mascarpone":    "Cashew-mascarpone of soja-mascarpone",
@@ -566,6 +569,7 @@ DIET_MAP = {
     "vegan": {
         "triggers": _VLEES + _VIS + [
             # Zuivel — generiek
+            "roomboter bladerdeeg", "boter bladerdeeg",
             "melk", "room", "slagroom", "boter", "roomboter", "karnemelk",
             "kaas", "kwark", "yoghurt", "ghee",
             "crème fraîche", "creme fraiche",
@@ -584,10 +588,12 @@ DIET_MAP = {
         "alt_map": {
             "melk":          "Havermelk, sojamelk of amandelmelk",
             "room":          "Kokosroom of haverroom",
-            "slagroom":      "Kokosslagroom of plantaardige slagroom",
-            "boter":         "Plantaardige boter (bijv. Becel) of kokosolie",
-            "roomboter":     "Plantaardige boter (bijv. Becel) of kokosolie",
-            "ghee":          "Kokosolie of plantaardige boter",
+            "slagroom":           "Kokosslagroom of plantaardige slagroom",
+            "boter":              "Plantaardige boter (bijv. Becel) of kokosolie",
+            "roomboter":          "Plantaardige boter (bijv. Becel) of kokosolie",
+            "roomboter bladerdeeg": "Plantaardig bladerdeeg (bijv. JUS-ROL of Tante Fanny)",
+            "boter bladerdeeg":   "Plantaardig bladerdeeg (bijv. JUS-ROL of Tante Fanny)",
+            "ghee":               "Kokosolie of plantaardige boter",
             "karnemelk":     "Sojamelk met een scheutje citroensap of azijn",
             "crème fraîche": "Kokos crème fraîche of sojaroom",
             "creme fraiche": "Kokos crème fraîche of sojaroom",
