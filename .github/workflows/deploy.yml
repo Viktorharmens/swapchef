@@ -12,7 +12,10 @@ jobs:
     steps:
       - name: Trigger Coolify deploy
         run: |
-          curl -s -o /dev/null -w "%{http_code}" \
-            "${{ secrets.COOLIFY_WEBHOOK_URL }}" | grep -q "^2" \
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
+            "${{ secrets.COOLIFY_WEBHOOK_URL }}")
+          echo "HTTP status: $STATUS"
+          echo "$STATUS" | grep -q "^2" \
             && echo "Deploy getriggerd." \
             || (echo "Deploy mislukt." && exit 1)
