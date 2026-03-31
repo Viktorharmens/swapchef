@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 
 // Gesorteerd op populariteit (meest voorkomend eerst)
 const ALLERGENS = [
@@ -32,12 +32,17 @@ const DIETS = [
   { id: "whole30",     label: "Whole30",     emoji: "🥩" },
 ];
 
-const MOBILE_ALLERGEN_LIMIT = 6;
-const MOBILE_DIET_LIMIT = 5;
+const MOBILE_ALLERGEN_LIMIT = 5;
+const MOBILE_DIET_LIMIT = 4;
 
 const API_BASE = "https://api.swapchef.nl";
 
 export default function RecipeAnalyzer() {
+  const isPWA = useMemo(() =>
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true,
+  []);
+
   const [url, setUrl]                   = useState("");
   const [selected, setSelected]         = useState([]);
   const [selectedDiets, setSelectedDiets] = useState([]);
@@ -105,51 +110,61 @@ export default function RecipeAnalyzer() {
   const unsafeIngredients = result?.ingredients.filter((i) => i.is_unsafe)   ?? [];
 
   return (
-    <div className="min-h-screen px-4 py-10 relative overflow-hidden">
+    <div className="min-h-screen relative bg-gray-100 sm:bg-transparent">
 
-      {/* Background photo */}
+      {/* Background photo — alleen op desktop */}
       <img
         src="/swapchef-bg.png"
         alt=""
         aria-hidden="true"
-        className="fixed inset-0 w-full h-full object-cover pointer-events-none -z-10"
+        className="fixed inset-0 w-full h-full object-cover pointer-events-none -z-10 hidden sm:block"
       />
 
-      <div className="max-w-2xl relative mx-auto sm:mx-0 sm:ml-[50px]">
+      {/* App wrapper — roze achtergrond alleen op mobiel als blok, op desktop transparant links */}
+      <div className="min-h-screen max-w-lg mx-auto sm:mx-0 sm:ml-[60px] sm:min-h-0 sm:max-w-[42rem] sm:mt-8 sm:rounded-3xl overflow-hidden"
+           style={{ backgroundColor: "#fbeee9" }}>
 
-        {/* Form card */}
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-3xl bg-white/60 backdrop-blur-md border border-white/40 p-5 sm:p-8 shadow-2xl"
-        >
-          {/* Header inside card */}
-          <div className="mb-6 text-center">
-            <img src="/logo.png" alt="SwapChef" className="mx-auto h-20 sm:h-32 w-auto" />
-            <p className="mt-2 text-base text-gray-500 font-medium">
-              De slimme assistent voor elk dieet of allergie.
-            </p>
-          </div>
+        {/* Top navbar */}
+        <div className="px-5 py-3 bg-white/80 backdrop-blur-sm shadow-sm">
+          <img src="/logo.png" alt="SwapChef" className="h-14 w-auto" />
+        </div>
 
-          {/* URL input */}
-          <label className="block text-base font-bold text-gray-800 mb-2">
-            Recept-URL
-          </label>
+      <div className="px-5 pb-10">
+
+        {/* Greeting */}
+        <div className="mb-8 mt-8">
+          <h1 className="text-3xl font-bold text-gray-900">Hallo Chef! 👋</h1>
+          <p className="mt-1 text-base text-gray-500">
+            Klaar om je recepten allergievriendelijk of dieetvriendelijk te maken?
+          </p>
+        </div>
+
+        {/* Form — geen card wrapper */}
+        <form onSubmit={handleSubmit}>
+
+          {/* URL input — pill met link-icoon */}
           <div className="relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-[#ff4423]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+            </span>
             <input
               type="url"
               required
-              placeholder="https://www.allerhande.nl/recept/..."
+              placeholder="plak hier je recept url"
               value={url}
               onChange={(e) => { setUrl(e.target.value); setResult(null); setError(null); }}
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 pr-10 text-base
-                         focus:border-orange-400 focus:outline-none focus:ring-2
-                         focus:ring-orange-100 transition"
+              className="w-full rounded-full bg-white pl-12 pr-10 py-4 text-base text-gray-700
+                         placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2
+                         focus:ring-[#ff4423]/30 transition"
             />
             {url && (
               <button
                 type="button"
                 onClick={() => { setUrl(""); setResult(null); setError(null); }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400
                            hover:text-gray-600 transition"
                 aria-label="URL wissen"
               >
@@ -162,8 +177,8 @@ export default function RecipeAnalyzer() {
 
           {/* Allergen multi-select */}
           <fieldset className="mt-6">
-            <legend className="text-base font-bold text-gray-800 mb-3">
-              Mijn allergieën
+            <legend className="text-xl font-bold text-gray-800 mb-3">
+              Allergieën
             </legend>
             <div className="flex flex-wrap gap-2">
               {ALLERGENS.map(({ id, label, emoji }, idx) => {
@@ -175,16 +190,15 @@ export default function RecipeAnalyzer() {
                     type="button"
                     onClick={() => toggleAllergen(id)}
                     style={active ? { backgroundColor: "#ff4423", borderColor: "#ff4423" } : {}}
-                    className={`items-center gap-2 rounded-full border-2 px-4 py-2
-                                text-base font-semibold transition select-none
+                    className={`rounded-full border-2 px-4 py-2 text-base font-semibold
+                                transition select-none
                                 ${hiddenOnMobile ? "hidden sm:inline-flex" : "inline-flex"}
                                 ${active
                                   ? "text-white shadow-md"
-                                  : "border-gray-200 bg-white text-gray-600 hover:border-[#ff4423] hover:bg-orange-50"
+                                  : "border-[#f5ddd6] bg-white text-gray-600 hover:border-[#ff4423] hover:bg-orange-50"
                                 }`}
                   >
-                    <span>{emoji}</span>
-                    {label}
+                    <span style={{ marginRight: "5px" }}>{emoji}</span>{label}
                   </button>
                 );
               })}
@@ -192,9 +206,10 @@ export default function RecipeAnalyzer() {
                 <button
                   type="button"
                   onClick={() => setShowAllAllergens(true)}
-                  className="sm:hidden inline-flex items-center gap-1 rounded-full border-2
-                             border-dashed border-gray-300 px-4 py-2 text-base font-semibold
-                             text-gray-500 hover:border-[#ff4423] hover:text-[#ff4423] transition select-none"
+                  className="sm:hidden inline-flex items-center rounded-full border-2 border-dashed
+                             border-[#f5ddd6] px-4 py-2
+                             text-base font-semibold text-gray-500
+                             hover:border-[#ff4423] hover:text-[#ff4423] transition select-none"
                 >
                   +{ALLERGENS.length - MOBILE_ALLERGEN_LIMIT} meer
                 </button>
@@ -204,8 +219,8 @@ export default function RecipeAnalyzer() {
 
           {/* Diet multi-select */}
           <fieldset className="mt-6">
-            <legend className="text-base font-bold text-gray-800 mb-3">
-              Mijn dieet
+            <legend className="text-xl font-bold text-gray-800 mb-3">
+              Dieet
             </legend>
             <div className="flex flex-wrap gap-2">
               {DIETS.map(({ id, label, emoji }, idx) => {
@@ -216,16 +231,16 @@ export default function RecipeAnalyzer() {
                     key={id}
                     type="button"
                     onClick={() => toggleDiet(id)}
-                    className={`items-center gap-2 rounded-full border-2 px-4 py-2
-                                text-base font-semibold transition select-none
+                    style={active ? { backgroundColor: "#ff4423", borderColor: "#ff4423" } : {}}
+                    className={`rounded-full border-2 px-4 py-2 text-base font-semibold
+                                transition select-none
                                 ${hiddenOnMobile ? "hidden sm:inline-flex" : "inline-flex"}
                                 ${active
-                                  ? "border-green-600 bg-green-600 text-white shadow-md"
-                                  : "border-gray-200 bg-white text-gray-600 hover:border-green-500 hover:bg-green-50"
+                                  ? "text-white shadow-md"
+                                  : "border-[#f5ddd6] bg-white text-gray-600 hover:border-[#ff4423] hover:bg-orange-50"
                                 }`}
                   >
-                    <span>{emoji}</span>
-                    {label}
+                    <span style={{ marginRight: "5px" }}>{emoji}</span>{label}
                   </button>
                 );
               })}
@@ -233,9 +248,10 @@ export default function RecipeAnalyzer() {
                 <button
                   type="button"
                   onClick={() => setShowAllDiets(true)}
-                  className="sm:hidden inline-flex items-center gap-1 rounded-full border-2
-                             border-dashed border-gray-300 px-4 py-2 text-base font-semibold
-                             text-gray-500 hover:border-green-500 hover:text-green-600 transition select-none"
+                  className="sm:hidden inline-flex items-center rounded-full border-2 border-dashed
+                             border-[#f5ddd6] px-4 py-2
+                             text-base font-semibold text-gray-500
+                             hover:border-[#ff4423] hover:text-[#ff4423] transition select-none"
                 >
                   +{DIETS.length - MOBILE_DIET_LIMIT} meer
                 </button>
@@ -250,7 +266,7 @@ export default function RecipeAnalyzer() {
             style={{ backgroundColor: "#ff4423" }}
             onMouseEnter={e => e.currentTarget.style.backgroundColor = "#e03a1e"}
             onMouseLeave={e => e.currentTarget.style.backgroundColor = "#ff4423"}
-            className="group mt-8 w-full rounded-2xl px-6 py-4 text-lg font-bold
+            className="group mt-8 w-full rounded-full px-6 py-4 text-lg font-bold
                        text-white active:scale-95
                        disabled:cursor-not-allowed disabled:opacity-60 transition"
           >
@@ -260,7 +276,6 @@ export default function RecipeAnalyzer() {
               </span>
             ) : (
               <span className="relative block overflow-hidden">
-                {/* Spacer */}
                 <span className="invisible block" aria-hidden="true">Swap ingrediënten</span>
                 {/* Huidige tekst: elk woord schuift los omhoog */}
                 <span className="absolute inset-0 flex items-center justify-center gap-2">
@@ -295,7 +310,7 @@ export default function RecipeAnalyzer() {
 
         {/* Results */}
         {result && (
-          <div ref={resultsRef} className="mt-6 rounded-3xl bg-white/60 backdrop-blur-md border border-white/40 p-8 shadow-2xl">
+          <div ref={resultsRef} className="mt-6 rounded-3xl bg-white p-6 shadow-sm">
 
             {/* Recipe title + summary */}
             <h2 className="text-2xl font-bold text-gray-800 truncate">
@@ -364,23 +379,24 @@ export default function RecipeAnalyzer() {
         )}
 
         {/* Footer */}
-        <footer className="mt-10 pb-6 text-center text-sm text-white/70">
-        <p>© {new Date().getFullYear()} SwapChef. Alle rechten voorbehouden.</p>
-        <div className="mt-1 flex justify-center gap-4">
-          <button
-            onClick={() => setActiveModal("disclaimer")}
-            className="underline underline-offset-2 hover:text-white transition"
-          >
-            Disclaimer
-          </button>
-          <button
-            onClick={() => setActiveModal("privacy")}
-            className="underline underline-offset-2 hover:text-white transition"
-          >
-            Privacybeleid
-          </button>
-        </div>
-      </footer>
+        <footer className="mt-10 pb-6 text-center text-sm text-gray-400">
+          <p>© {new Date().getFullYear()} SwapChef. Alle rechten voorbehouden.</p>
+          <div className="mt-1 flex justify-center gap-4">
+            <button
+              onClick={() => setActiveModal("disclaimer")}
+              className="underline underline-offset-2 hover:text-gray-600 transition"
+            >
+              Disclaimer
+            </button>
+            <button
+              onClick={() => setActiveModal("privacy")}
+              className="underline underline-offset-2 hover:text-gray-600 transition"
+            >
+              Privacybeleid
+            </button>
+          </div>
+        </footer>
+      </div>
       </div>
 
       {/* Modal */}
