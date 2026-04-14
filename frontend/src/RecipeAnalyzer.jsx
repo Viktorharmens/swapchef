@@ -55,6 +55,7 @@ export default function RecipeAnalyzer() {
   const [showInfo, setShowInfo]                 = useState(false);
   const [dragY, setDragY]                       = useState(0);
   const [isDragging, setIsDragging]             = useState(false);
+  const [infoSlide, setInfoSlide]               = useState("main");
   const dragStartY = useRef(0);
   const resultsRef = useRef(null);
 
@@ -82,6 +83,13 @@ export default function RecipeAnalyzer() {
       window.scrollTo({ top, behavior: "smooth" });
     }
   }, [result]);
+
+  useEffect(() => {
+    if (!showInfo) {
+      const t = setTimeout(() => setInfoSlide("main"), 300);
+      return () => clearTimeout(t);
+    }
+  }, [showInfo]);
 
   function toggleAllergen(id) {
     setSelected((prev) =>
@@ -163,33 +171,78 @@ export default function RecipeAnalyzer() {
           {/* Drag handle */}
           <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
 
-          {/* How it works */}
-          <h2 className="text-lg font-bold text-gray-900 mb-2">Hoe werkt SwapChef?</h2>
-          <p className="text-sm text-gray-600 leading-relaxed">
-            Plak een recept-URL van een site zoals Allerhande of Leukerecepten,
-            kies jouw allergieën of dieetwensen en SwapChef analyseert automatisch
-            de ingrediënten. Onveilige ingrediënten krijgen een slim alternatief —
-            afgestemd op jouw situatie.
-          </p>
+          {/* Sliding panels */}
+          <div className="overflow-hidden">
+            <div
+              className="flex transition-transform duration-300 ease-out"
+              style={{
+                transform: infoSlide === "main"
+                  ? "translateX(0%)"
+                  : infoSlide === "disclaimer"
+                  ? "translateX(-100%)"
+                  : "translateX(-200%)"
+              }}
+            >
+              {/* Panel 1: hoofdpagina */}
+              <div className="w-full shrink-0">
+                <h2 className="text-lg font-bold text-gray-900 mb-2">Hoe werkt SwapChef?</h2>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Plak een recept-URL van een site zoals Allerhande of Leukerecepten,
+                  kies jouw allergieën of dieetwensen en SwapChef analyseert automatisch
+                  de ingrediënten. Onveilige ingrediënten krijgen een slim alternatief —
+                  afgestemd op jouw situatie.
+                </p>
+                <hr className="my-5 border-gray-100" />
+                <div className="flex items-center justify-between text-sm text-gray-500">
+                  <span>© {new Date().getFullYear()} SwapChef</span>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => setInfoSlide("disclaimer")}
+                      className="underline underline-offset-2 hover:text-gray-800 transition"
+                    >
+                      Disclaimer
+                    </button>
+                    <button
+                      onClick={() => setInfoSlide("privacy")}
+                      className="underline underline-offset-2 hover:text-gray-800 transition"
+                    >
+                      Privacy
+                    </button>
+                  </div>
+                </div>
+              </div>
 
-          <hr className="my-5 border-gray-100" />
+              {/* Panel 2: disclaimer */}
+              <div className="w-full shrink-0">
+                <button
+                  onClick={() => setInfoSlide("main")}
+                  className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition mb-4"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Terug
+                </button>
+                <div className="overflow-y-auto max-h-[55vh] pr-1">
+                  <DisclaimerContent />
+                </div>
+              </div>
 
-          {/* Legal */}
-          <div className="flex items-center justify-between text-sm text-gray-500">
-            <span>© {new Date().getFullYear()} SwapChef</span>
-            <div className="flex gap-4">
-              <button
-                onClick={() => { setShowInfo(false); setActiveModal("disclaimer"); }}
-                className="underline underline-offset-2 hover:text-gray-800 transition"
-              >
-                Disclaimer
-              </button>
-              <button
-                onClick={() => { setShowInfo(false); setActiveModal("privacy"); }}
-                className="underline underline-offset-2 hover:text-gray-800 transition"
-              >
-                Privacy
-              </button>
+              {/* Panel 3: privacy */}
+              <div className="w-full shrink-0">
+                <button
+                  onClick={() => setInfoSlide("main")}
+                  className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition mb-4"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Terug
+                </button>
+                <div className="overflow-y-auto max-h-[55vh] pr-1">
+                  <PrivacyContent />
+                </div>
+              </div>
             </div>
           </div>
         </div>
