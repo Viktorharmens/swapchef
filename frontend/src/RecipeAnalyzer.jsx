@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 
 // Gesorteerd op populariteit (meest voorkomend eerst)
 const ALLERGENS = [
@@ -55,6 +55,9 @@ export default function RecipeAnalyzer() {
   const [showInfo, setShowInfo]                 = useState(false);
   const [dragY, setDragY]                       = useState(0);
   const [isDragging, setIsDragging]             = useState(false);
+  const [shoppingList, setShoppingList]         = useState([]);
+  const [shopPanelOpen, setShopPanelOpen]       = useState(false);
+  const [copied, setCopied]                     = useState(false);
   const dragStartY = useRef(0);
   const resultsRef = useRef(null);
 
@@ -94,6 +97,40 @@ export default function RecipeAnalyzer() {
       prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]
     );
   }
+
+  const addToList = useCallback((text) => {
+    setShoppingList((prev) => prev.includes(text) ? prev : [...prev, text]);
+    setShopPanelOpen(true);
+  }, []);
+
+  const removeFromList = useCallback((text) => {
+    setShoppingList((prev) => prev.filter((i) => i !== text));
+  }, []);
+
+  async function shareList() {
+    const text = shoppingList.join("\n");
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Boodschappenlijst", text });
+      } catch {
+        // gebruiker heeft geannuleerd — niets doen
+      }
+    } else {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }
+
+  function copyList() {
+    navigator.clipboard.writeText(shoppingList.join("\n"));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  useEffect(() => {
+    if (shoppingList.length === 0) setShopPanelOpen(false);
+  }, [shoppingList]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -433,8 +470,9 @@ export default function RecipeAnalyzer() {
                           {ing.issue_type === "dieet" ? "Dieet" : "Allergie"}: {ing.matched_allergen}
                         </span>
                       </div>
-                      <div className="mt-2 rounded-xl bg-green-100 px-3 py-2 text-sm font-semibold text-green-800">
-                        ✔ {ing.alternative}
+                      <div className="mt-2 rounded-xl bg-green-100 px-3 py-2 text-sm font-semibold text-green-800 flex items-center justify-between gap-2">
+                        <span>✔ {ing.alternative}</span>
+                        <AddButton text={ing.alternative} list={shoppingList} onAdd={addToList} />
                       </div>
                     </li>
                   ))}
@@ -456,7 +494,8 @@ export default function RecipeAnalyzer() {
                                  bg-green-50 px-3 py-2 text-base text-green-900"
                     >
                       <span className="text-green-500">✓</span>
-                      {ing.original}
+                      <span className="flex-1">{ing.original}</span>
+                      <AddButton text={ing.original} list={shoppingList} onAdd={addToList} />
                     </li>
                   ))}
                 </ul>
@@ -492,6 +531,18 @@ export default function RecipeAnalyzer() {
           {activeModal === "disclaimer" ? <DisclaimerContent /> : <PrivacyContent />}
         </Modal>
       )}
+
+      {/* Floating shopping panel */}
+      <ShoppingPanel
+        list={shoppingList}
+        isOpen={shopPanelOpen}
+        onToggle={() => setShopPanelOpen((o) => !o)}
+        onRemove={removeFromList}
+        onShare={shareList}
+        onCopy={copyList}
+        copied={copied}
+        canShare={!!navigator.share}
+      />
     </div>
   );
 }
@@ -573,6 +624,127 @@ function PrivacyContent() {
         </a>.
       </p>
       <p className="mt-4 text-xs text-gray-400">Laatst bijgewerkt: maart 2026</p>
+    </div>
+  );
+}
+
+function AddButton({ text, list, onAdd }) {
+  const inList = list.includes(text);
+  return (
+    <button
+      type="button"
+      onClick={() => onAdd(text)}
+      disabled={inList}
+      className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold transition
+                  ${inList
+                    ? "bg-green-500 text-white cursor-default"
+                    : "bg-[#ff4423] text-white hover:bg-[#e03a1e] active:scale-95"}`}
+      aria-label={inList ? "Al op boodschappenlijst" : "Voeg toe aan boodschappenlijst"}
+    >
+      {inList ? "✓" : <span className="-mt-0.5 block">+</span>}
+    </button>
+  );
+}
+
+function ShoppingPanel({ list, isOpen, onToggle, onRemove, onShare, onCopy, copied, canShare }) {
+  if (list.length === 0) return null;
+
+  return (
+    <div className="fixed bottom-6 right-4 sm:right-6 z-40">
+      {isOpen ? (
+        <div className="w-72 sm:w-80 rounded-3xl bg-white shadow-2xl border border-gray-100 overflow-hidden">
+
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <span className="font-bold text-gray-800 text-sm">Boodschappenlijst</span>
+              <span className="text-xs font-bold text-white rounded-full px-2 py-0.5 leading-none"
+                    style={{ backgroundColor: "#ff4423" }}>
+                {list.length}
+              </span>
+            </div>
+            <button
+              onClick={onToggle}
+              className="text-gray-400 hover:text-gray-600 transition"
+              aria-label="Minimaliseer"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          </div>
+
+          {/* List */}
+          <ul className="max-h-60 overflow-y-auto px-3 py-2 space-y-1">
+            {list.map((item) => (
+              <li key={item} className="flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2">
+                <span className="flex-1 text-sm text-gray-700 truncate">{item}</span>
+                <button
+                  onClick={() => onRemove(item)}
+                  className="shrink-0 text-gray-300 hover:text-red-400 transition text-base leading-none"
+                  aria-label={`Verwijder ${item}`}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          {/* Footer */}
+          <div className="px-4 py-3 border-t border-gray-100 flex gap-2">
+            {canShare ? (
+              <button
+                onClick={onShare}
+                className="flex-1 flex items-center justify-center gap-1.5 rounded-full py-2 text-sm font-semibold text-white transition active:scale-95"
+                style={{ backgroundColor: "#ff4423" }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                Deel lijst
+              </button>
+            ) : (
+              <button
+                onClick={onCopy}
+                className="flex-1 rounded-full py-2 text-sm font-semibold text-white transition active:scale-95"
+                style={{ backgroundColor: copied ? "#16a34a" : "#ff4423" }}
+              >
+                {copied ? "✓ Gekopieerd!" : "Kopieer lijst"}
+              </button>
+            )}
+            {canShare && (
+              <button
+                onClick={onCopy}
+                className="shrink-0 rounded-full px-3 py-2 text-sm font-semibold border border-gray-200 text-gray-500 hover:bg-gray-50 transition"
+                title="Kopieer naar klembord"
+                aria-label="Kopieer lijst"
+              >
+                {copied ? "✓" : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* FAB */
+        <button
+          onClick={onToggle}
+          className="flex items-center gap-2 rounded-full pl-3 pr-4 py-3 text-white font-bold shadow-lg transition active:scale-95 hover:opacity-90"
+          style={{ backgroundColor: "#ff4423" }}
+          aria-label="Boodschappenlijst openen"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          <span className="text-sm">{list.length} {list.length === 1 ? "item" : "items"}</span>
+        </button>
+      )}
     </div>
   );
 }
