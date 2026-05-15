@@ -4,7 +4,11 @@ from pydantic import BaseModel, HttpUrl
 from curl_cffi.requests import AsyncSession as CurlSession
 from recipe_scrapers import scrape_html
 from recipe_scrapers._exceptions import WebsiteNotImplementedError, NoSchemaFoundInWildMode
+import httpx
+import os
 import re
+
+SCRAPINGBEE_API_KEY = os.getenv("SCRAPINGBEE_API_KEY")
 
 
 app = FastAPI(title="Smart Recipe Substitute API")
@@ -1277,6 +1281,29 @@ def check_ingredient(
     )
 
 
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+async def fetch_html(url: str) -> str:
+    async with CurlSession(impersonate="chrome131") as session:
+        response = await session.get(url, allow_redirects=True, timeout=15)
+
+    if response.status_code == 403 and SCRAPINGBEE_API_KEY:
+        async with httpx.AsyncClient() as client:
+            sb = await client.get(
+                "https://app.scrapingbee.com/api/v1/",
+                params={"api_key": SCRAPINGBEE_API_KEY, "url": url, "render_js": "false"},
+                timeout=30,
+            )
+        if sb.status_code >= 400:
+            raise HTTPException(status_code=502, detail=f"Website gaf fout {sb.status_code} terug.")
+        return sb.text
+
+    if response.status_code >= 400:
+        raise HTTPException(status_code=502, detail=f"Website gaf fout {response.status_code} terug.")
+
+    return response.text
+
+
 # ── Endpoint ─────────────────────────────────────────────────────────────────
 
 @app.post("/analyze", response_model=AnalyzeResponse)
@@ -1284,17 +1311,14 @@ async def analyze_recipe(body: AnalyzeRequest):
     url = str(body.url)
 
     try:
-        async with CurlSession(impersonate="chrome131") as session:
-            response = await session.get(url, allow_redirects=True, timeout=15)
-        if response.status_code >= 400:
-            raise HTTPException(status_code=502, detail=f"Website gaf fout {response.status_code} terug.")
+        html = await fetch_html(url)
     except HTTPException:
         raise
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Kon URL niet bereiken: {exc}")
 
     try:
-        scraper = scrape_html(html=response.text, org_url=url, supported_only=False)
+        scraper = scrape_html(html=html, org_url=url, supported_only=False)
     except WebsiteNotImplementedError:
         raise HTTPException(status_code=422, detail="Website wordt niet ondersteund.")
     except NoSchemaFoundInWildMode:
