@@ -1,7 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, HttpUrl
-import httpx
 from curl_cffi.requests import AsyncSession as CurlSession
 from recipe_scrapers import scrape_html
 from recipe_scrapers._exceptions import WebsiteNotImplementedError, NoSchemaFoundInWildMode
