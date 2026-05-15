@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, HttpUrl
 import httpx
+from curl_cffi.requests import AsyncSession as CurlSession
 from recipe_scrapers import scrape_html
 from recipe_scrapers._exceptions import WebsiteNotImplementedError, NoSchemaFoundInWildMode
 import re
@@ -10,9 +11,18 @@ BROWSER_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
+        "Chrome/124.0.0.0 Safari/537.36"
     ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     "Accept-Language": "nl-NL,nl;q=0.9,en;q=0.8",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Cache-Control": "max-age=0",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
 }
 
 app = FastAPI(title="Smart Recipe Substitute API")
@@ -1292,12 +1302,13 @@ async def analyze_recipe(body: AnalyzeRequest):
     url = str(body.url)
 
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=BROWSER_HEADERS, follow_redirects=True, timeout=15)
-        response.raise_for_status()
-    except httpx.HTTPStatusError as exc:
-        raise HTTPException(status_code=502, detail=f"Website gaf fout {exc.response.status_code} terug.")
-    except httpx.RequestError as exc:
+        async with CurlSession(impersonate="chrome124") as session:
+            response = await session.get(url, headers=BROWSER_HEADERS, allow_redirects=True, timeout=15)
+        if response.status_code >= 400:
+            raise HTTPException(status_code=502, detail=f"Website gaf fout {response.status_code} terug.")
+    except HTTPException:
+        raise
+    except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Kon URL niet bereiken: {exc}")
 
     try:
