@@ -3,3 +3,4 @@ uvicorn[standard]==0.34.0
 recipe-scrapers==15.7.0
 pydantic==2.10.5
 httpx==0.28.1
+curl_cffi>=0.7
