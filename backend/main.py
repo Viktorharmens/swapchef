@@ -1,12 +1,26 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, HttpUrl
-from curl_cffi.requests import AsyncSession as CurlSession
-from recipe_scrapers import scrape_html
-from recipe_scrapers._exceptions import WebsiteNotImplementedError, NoSchemaFoundInWildMode
-import httpx
 import os
-import re
+from urllib.parse import urljoin, urlsplit
+
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field, HttpUrl
+from recipe_scrapers import scrape_html
+from recipe_scrapers._exceptions import (
+    NoSchemaFoundInWildMode,
+    WebsiteNotImplementedError,
+)
+
+from matching import (
+    DAIRY_TAILS,
+    GLUTEN_FREE_PREFIXES,
+    PLANT_PREFIXES,
+    compile_mapping,
+    find_trigger,
+)
+from quantities import parse_ingredient
+from rate_limit import RateLimiter
+from ratios import alternative_amount
+from safe_fetch import FetchError, fetch_html
 
 SCRAPINGBEE_API_KEY = os.getenv("SCRAPINGBEE_API_KEY")
 
@@ -28,56 +42,85 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Gedeelde lijsten ─────────────────────────────────────────────────────────
+# Zuivel en ei gelden voor de allergie én voor vegan; daarom staan ze hier één keer.
+
+_ZUIVEL = [
+    "roomboter bladerdeeg", "boter bladerdeeg",
+    "roomboter", "karnemelk", "slagroom", "crème fraîche", "creme fraiche",
+    "mascarpone", "mozzarella", "parmezaan", "parmesan", "parmigiano", "pecorino",
+    "grana padano", "ricotta", "roomkaas", "burrata",
+    "brie", "camembert", "gorgonzola", "feta", "cheddar",
+    "gouda", "edam", "gruyère", "gruyere", "emmentaler", "manchego",
+    "halloumi", "paneer", "cottage cheese", "hüttenkäse", "huttenkase",
+    "taleggio", "fontina", "provolone", "stilton", "roquefort", "raclette", "comté",
+    "skyr", "kefir", "wei", "weipoeder", "bechamel", "béchamel",
+    "witte chocolade", "melkchocolade",
+    "melk", "room", "boter", "kaas", "kwark", "yoghurt",
+    "ghee", "vla", "pudding", "custard", "ijs",
+]
+# Samenstellingen die hierop eindigen zijn ook zuivel: geitenkaas, kookroom, kruidenboter.
+_ZUIVEL_HEADS = ["kaas", "melk", "room", "boter", "yoghurt", "kwark", "vla"]
+# ... behalve deze: geen zuivel, of geen eten.
+_ZUIVEL_HEAD_EXCEPTIONS = ["leverkaas", "hoofdkaas", "stroom", "droom", "aroom"]
+
+_EI = [
+    "ei", "eieren", "eitje", "eitjes", "eigeel", "eiwit", "eidooier", "eierdooier",
+    "kippenei", "scharrelei", "kwartelei", "omelet", "advocaat",
+    "mayonaise", "mayo", "hollandaisesaus", "bearnaisesaus", "aioli", "meringue",
+    "custard", "lemon curd",
+]
+_EI_HEADS = ["eieren", "eitjes", "eidooier", "eidooiers"]
+
+# Samenstellingen die hierop eindigen zijn vlees: stooflappen, duivenborst, kalfsworst.
+_VLEES_HEADS = ["vlees", "worst", "lappen", "lapjes", "borst"]
+
 # ── Allergen mapping ─────────────────────────────────────────────────────────
 
 ALLERGEN_MAP = {
     "lactose": {
-        "triggers": ["roomboter bladerdeeg", "boter bladerdeeg",
-                     "roomboter", "karnemelk", "slagroom", "crème fraîche", "creme fraiche",
-                     "mascarpone", "mozzarella", "parmezaan", "parmesan", "pecorino",
-                     "ricotta", "roomkaas", "burrata",
-                     "brie", "camembert", "gorgonzola", "feta", "cheddar",
-                     "gouda", "edam", "gruyère", "gruyere", "emmentaler",
-                     "melk", "room", "boter", "kaas", "kwark", "yoghurt",
-                     "ghee", "vla", "pudding", "custard", "ijs"],
+        "triggers": _ZUIVEL,
+        "heads": _ZUIVEL_HEADS,
+        "head_exceptions": _ZUIVEL_HEAD_EXCEPTIONS,
+        "compound_skip": PLANT_PREFIXES,
         "alt": "Plantaardig zuivelalternatief (soja, haver of kokos)",
         "alt_map": {
-            "melk":          "Ongezoete havermelk (bijv. Oatly of Alpro) of sojamelk of rijstmelk",
-            "room":          "Kokosroom (bijv. Aroy-D) of haverroom (bijv. Alpro Haver Kookroom)",
-            "slagroom":           "Kokosslagroom of plantaardige slagroom (bijv. Alpro of Oatly Haverroom)",
-            "boter":              "Plantaardige boter (bijv. Becel Plant-Based) of kokosolie",
-            "roomboter":          "Plantaardige boter (bijv. Becel Plant-Based) of kokosolie",
-            "roomboter bladerdeeg": "Lactosevrij bladerdeeg of plantaardig bladerdeeg (bijv. JUS-ROL of Tante Fanny)",
-            "boter bladerdeeg":   "Lactosevrij bladerdeeg of plantaardig bladerdeeg (bijv. JUS-ROL of Tante Fanny)",
-            "ghee":               "Kokosolie of plantaardige boter (bijv. Becel Plant-Based)",
-            "yoghurt":       "Kokosyoghurt (bijv. The Coconut Collaborative) of sojamelkyoghurt (bijv. Alpro)",
-            "kwark":         "Sojakwark (bijv. Alpro Soja Kwark) of kokos-kwark",
-            "mascarpone":    "Cashew-mascarpone (bijv. Violife of Nush) of soja-mascarpone",
-            "ricotta":       "Tofu-ricotta of vegane ricotta (bijv. Violife)",
-            "crème fraîche": "Kokos crème fraîche of sojaroom (bijv. Alpro)",
-            "creme fraiche": "Kokos crème fraîche of sojaroom (bijv. Alpro)",
-            "mozzarella":    "Vegane mozzarella op basis van cashewnoten en rijst (bijv. MozzaRisella)",
-            "parmezaan":     "Edelgistvlokken of vegane parmezaan (bijv. Violife Prosociano)",
-            "parmesan":      "Edelgistvlokken of vegane parmezaan (bijv. Violife Prosociano)",
-            "pecorino":      "Edelgistvlokken of vegane harde kaas (bijv. Violife Prosociano)",
-            "feta":          "Tofu-feta (tofu met citroensap en zout) of vegane feta (bijv. Violife)",
-            "brie":          "Vegane zachte kaas (bijv. Violife Soft White) of cashewkaas",
-            "camembert":     "Vegane zachte kaas (bijv. Violife Soft White) of cashewkaas",
-            "gorgonzola":    "Vegane blauwe kaas (bijv. Violife)",
-            "cheddar":       "Vegane harde kaas (bijv. Violife of Daiya) of voedingsgist",
-            "gouda":         "Vegane harde kaas (bijv. Violife of Daiya) of voedingsgist",
-            "edam":          "Vegane harde kaas (bijv. Violife of Daiya) of voedingsgist",
-            "gruyère":       "Vegane harde kaas (bijv. Violife of Daiya) of voedingsgist",
-            "gruyere":       "Vegane harde kaas (bijv. Violife of Daiya) of voedingsgist",
-            "emmentaler":    "Vegane harde kaas (bijv. Violife of Daiya) of voedingsgist",
-            "burrata":       "Vegane burrata (bijv. Violife) of cashew-burrata",
-            "karnemelk":     "Sojamelk (bijv. Alpro) met een scheutje citroensap of azijn",
-            "vla":           "Sojavla (bijv. Alpro Soja Vla) of havervla",
-            "pudding":       "Sojapudding (bijv. Alpro) of kokospudding",
+            "melk":          "Ongezoete havermelk of sojamelk of rijstmelk",
+            "room":          "Kokosroom of haverroom",
+            "slagroom":           "Kokosslagroom of plantaardige slagroom",
+            "boter":              "Plantaardige boter of kokosolie",
+            "roomboter":          "Plantaardige boter of kokosolie",
+            "roomboter bladerdeeg": "Lactosevrij bladerdeeg of plantaardig bladerdeeg",
+            "boter bladerdeeg":   "Lactosevrij bladerdeeg of plantaardig bladerdeeg",
+            "ghee":               "Kokosolie of plantaardige boter",
+            "yoghurt":       "Kokosyoghurt of sojamelkyoghurt",
+            "kwark":         "Sojakwark of kokos-kwark",
+            "mascarpone":    "Cashew-mascarpone of soja-mascarpone",
+            "ricotta":       "Tofu-ricotta of vegane ricotta",
+            "crème fraîche": "Plantaardige crème fraîche (op basis van kokos of soja)",
+            "creme fraiche": "Plantaardige crème fraîche (op basis van kokos of soja)",
+            "mozzarella":    "Vegane mozzarella op basis van cashewnoten en rijst",
+            "parmezaan":     "Edelgistvlokken of vegane parmezaan",
+            "parmesan":      "Edelgistvlokken of vegane parmezaan",
+            "pecorino":      "Edelgistvlokken of vegane harde kaas",
+            "feta":          "Tofu-feta (tofu met citroensap en zout) of vegane feta",
+            "brie":          "Vegane zachte kaas of cashewkaas",
+            "camembert":     "Vegane zachte kaas of cashewkaas",
+            "gorgonzola":    "Vegane blauwe kaas",
+            "cheddar":       "Vegane harde kaas of voedingsgist",
+            "gouda":         "Vegane harde kaas of voedingsgist",
+            "edam":          "Vegane harde kaas of voedingsgist",
+            "gruyère":       "Vegane harde kaas of voedingsgist",
+            "gruyere":       "Vegane harde kaas of voedingsgist",
+            "emmentaler":    "Vegane harde kaas of voedingsgist",
+            "burrata":       "Vegane burrata of cashew-burrata",
+            "karnemelk":     "Sojamelk met een scheutje citroensap of azijn",
+            "vla":           "Sojavla of havervla",
+            "pudding":       "Sojapudding of kokospudding",
             "custard":       "Sojacustard of kokoscustard",
-            "ijs":           "Kokosijs (bijv. So Delicious) of sojaijs (bijv. Alpro)",
-            "kaas":          "Vegane kaas (bijv. Violife of Daiya) of voedingsgist",
-            "roomkaas":      "Vegan spread op basis van amandel of soja (bijv. Oatly Spread of Violife)",
+            "ijs":           "Kokosijs of sojaijs",
+            "kaas":          "Vegane kaas of voedingsgist",
+            "roomkaas":      "Vegan spread op basis van amandel of soja",
         },
         "exceptions": ["kokosmelk", "amandelmelk", "havermelk", "sojamelk",
                        "rijstmelk", "kokosroom", "kokosboter", "lactosevrij",
@@ -95,19 +138,39 @@ ALLERGEN_MAP = {
                      "pita", "naan", "chapati", "wrap", "croissant", "toast",
                      "boterham", "roggebrood", "pannenkoek", "wafel", "biscuit",
                      "koekje", "koekjes", "cake", "gebak", "muffin",
-                     "gnocchi", "dumpling", "gyoza", "bier", "seitan"],
+                     "gnocchi", "dumpling", "gyoza", "bier", "seitan",
+                     "panko", "tortilla", "griesmeel", "gort", "parelgort", "haver",
+                     "havermout", "muesli", "granola", "croutons", "crouton",
+                     "noedels", "mie", "bami", "udon", "ramen", "speculaas",
+                     "koek", "ontbijtkoek", "bladerdeeg", "filodeeg", "pizzadeeg",
+                     "sojasaus", "ketjap", "kecap", "bakmeel", "tarwebloem"],
+        # Samenstellingen die hierop eindigen bevatten ook gluten: patentbloem, pitabrood.
+        "heads": ["bloem", "meel", "brood", "deeg", "noedels", "koek"],
+        "head_exceptions": ["zetmeel"],
+        "compound_skip": GLUTEN_FREE_PREFIXES,
         "alt": "Glutenvrije variant (boekweit/rijst)",
         "alt_map": {
-            "pasta":           "Glutenvrije maïs- of bruine rijstpasta (bijv. Barilla Glutenvrij of Schar)",
-            "spaghetti":       "Glutenvrije spaghetti van maïs of rijst (bijv. Barilla Glutenvrij of Schar)",
-            "macaroni":        "Glutenvrije macaroni van maïs of rijst (bijv. Schar of Barilla Glutenvrij)",
-            "penne":           "Glutenvrije penne van maïs of rijst (bijv. Barilla Glutenvrij of Schar)",
-            "rigatoni":        "Glutenvrije rigatoni (bijv. Schar) of Palmini (harten van palm)",
-            "fusilli":         "Glutenvrije fusilli van maïs of rijst (bijv. Barilla Glutenvrij)",
-            "tagliatelle":     "Glutenvrije tagliatelle van rijst of boekweit (bijv. Schar of Rummo GF)",
-            "fettuccine":      "Glutenvrije fettuccine van rijst (bijv. Schar of Rummo GF)",
-            "lasagne":         "Glutenvrije lasagnebladen van maïs of rijst (bijv. Barilla Glutenvrij of Schar)",
-            "lasagnebladen":   "Glutenvrije lasagnebladen van maïs of rijst (bijv. Barilla Glutenvrij of Schar)",
+            "sojasaus":        "Glutenvrije tamari of kokos aminos (controleer etiket)",
+            "ketjap":          "Glutenvrije ketjap of kokos aminos (controleer etiket)",
+            "kecap":           "Glutenvrije ketjap of kokos aminos (controleer etiket)",
+            "noedels":         "Rijstnoedels of glasnoedels",
+            "mie":             "Rijstnoedels of glasnoedels",
+            "bami":            "Rijstnoedels of glasnoedels",
+            "udon":            "Rijstnoedels of glasnoedels",
+            "ramen":           "Rijstnoedels of glasnoedels",
+            "haver":           "Glutenvrije haver (controleer etiket)",
+            "havermout":       "Glutenvrije havermout (controleer etiket)",
+            "panko":           "Glutenvrij paneermeel of fijngemalen maïsvlokken",
+            "pasta":           "Glutenvrije maïs- of bruine rijstpasta",
+            "spaghetti":       "Glutenvrije spaghetti van maïs of rijst",
+            "macaroni":        "Glutenvrije macaroni van maïs of rijst",
+            "penne":           "Glutenvrije penne van maïs of rijst",
+            "rigatoni":        "Glutenvrije rigatoni of Palmini (harten van palm)",
+            "fusilli":         "Glutenvrije fusilli van maïs of rijst",
+            "tagliatelle":     "Glutenvrije tagliatelle van rijst of boekweit",
+            "fettuccine":      "Glutenvrije fettuccine van rijst",
+            "lasagne":         "Glutenvrije lasagnebladen van maïs of rijst",
+            "lasagnebladen":   "Glutenvrije lasagnebladen van maïs of rijst",
             "gebakken uitjes": "Glutenvrije gebakken uitjes (gefrituurd in rijstmeel, te vinden bij de toko)",
         },
         "exceptions": ["maïsbloem", "rijstbloem", "boekweitbloem", "glutenvrij",
@@ -117,51 +180,65 @@ ALLERGEN_MAP = {
         "triggers": ["pinda", "cashew", "walnoot", "amandel", "hazelnoot",
                      "pistache", "pecan", "macadamia", "notenboter", "pindasaus",
                      "pindakaas", "notenpasta", "paranoot", "amandelspijs",
-                     "marsepein", "praline", "nougat"],
+                     "marsepein", "praline", "praliné", "nougat",
+                     "noten", "nootjes", "walnoten", "hazelnoten", "paranoten",
+                     "saté", "sate", "sateh", "satésaus", "satesaus", "arachide",
+                     "studentenhaver", "pesto", "nutella", "gianduja",
+                     "frangipane", "amaretti"],
+        # walnoten, cashewnoten, een handje paranoten
+        "heads": ["noot", "noten", "nootjes"],
+        "compound_skip": ("kokos", "muskaat", "tijger"),
         "alt": "Zonnebloem- of pompoenpitten",
         "alt_map": {
-            "pindakaas":    "Zonnebloempittenpasta of erwtenboter (notenvrij)",
+            "pesto":        "Notenvrije pesto, bijvoorbeeld met zonnebloempitten (controleer etiket)",
+            "saté":         "Saus op basis van zonnebloempasta met kokosmelk en gember",
+            "sate":         "Saus op basis van zonnebloempasta met kokosmelk en gember",
+            "sateh":        "Saus op basis van zonnebloempasta met kokosmelk en gember",
+            "satésaus":     "Saus op basis van zonnebloempasta met kokosmelk en gember",
+            "satesaus":     "Saus op basis van zonnebloempasta met kokosmelk en gember",
+            "nutella":      "Chocoladepasta zonder noten (controleer etiket)",
+            "praliné":      "Gekarameliseerde zonnebloempitten of pompoenpitten",
+            "pindakaas":    "Zonnebloempittenpasta of erwtenboter",
             "pindasaus":    "Saus op basis van zonnebloempasta met kokosmelk en gember",
             "notenboter":   "Zonnebloempittenpasta of pompoenpittpasta",
             "notenpasta":   "Zonnebloempittenpasta of pompoenpittpasta",
-            "amandelspijs": "Zonnebloemspijs of kokosspijs (notenvrij)",
+            "amandelspijs": "Zonnebloemspijs of kokosspijs",
             "marsepein":    "Kokosspijs of zonnebloemspijs als marsepein-alternatief",
             "praline":      "Gekarameliseerde zonnebloempitten of pompoenpitten",
-            "nougat":       "Nougat op basis van zaden of kokosnoot (controleer etiket)",
+            "nougat":       "Notenvrije nougat op basis van zaden (controleer etiket)",
         },
         "exceptions": ["nootmuskaat"],
     },
     "ei": {
-        "triggers": ["ei", "eieren", "eigeel", "eiwit", "mayonaise", "mayo",
-                     "hollandaisesaus", "bearnaisesaus", "aioli", "meringue",
-                     "custard", "lemon curd"],
+        "triggers": _EI,
+        "heads": _EI_HEADS,
         "alt": "Lijnzaad-ei (1 el lijnzaad + 3 el water) of aquafaba",
         "alt_map": {
-            "ei":             "Lijnzaad-ei (1 el gebroken lijnzaad + 3 el water, 5 min. laten staan) of aquafaba (3 el per ei)",
-            "eieren":         "Lijnzaad-ei per stuk (1 el lijnzaad + 3 el water) of appelmoes (60g per ei) of aquafaba",
+            "ei":             "Lijnzaad-ei (1 el gebroken lijnzaad + 3 el water, 5 min. laten staan) of aquafaba (3 el per stuk)",
+            "eieren":         "Lijnzaad-ei per stuk (1 el lijnzaad + 3 el water) of appelmoes (60 g per stuk) of aquafaba",
             "eigeel":         "Aquafaba of 1 el plantaardige olie voor rijkheid en binding",
             "eiwit":          "Aquafaba (opgeklopt) voor volume of binding",
-            "mayonaise":      "Vegane mayonaise (bijv. Hellmann's Vegan of Heinz Vegan)",
-            "mayo":           "Vegane mayonaise (bijv. Hellmann's Vegan of Heinz Vegan)",
+            "mayonaise":      "Vegane mayonaise",
+            "mayo":           "Vegane mayonaise",
             "aioli":          "Knoflookcrème op basis van cashew of olijfolie met knoflookpoeder",
             "hollandaisesaus":"Plantaardige hollandaise op basis van cashew of sojaroom",
             "bearnaisesaus":  "Plantaardige bearnaise op basis van cashew met dragon",
             "meringue":       "Aquafaba-meringue (klop 150ml kikkererwtenvloeistof stijf)",
             "custard":        "Sojacustard of kokoscustard",
-            "lemon curd":     "Lemon curd op basis van kokosmelk en maïzena",
+            "lemon curd":     "Plantaardige lemon curd op basis van kokosmelk en maïzena",
         },
-        "exceptions": ["eikenblad"],
+        "exceptions": ["eikenblad", "wei-eiwit", "wei eiwit", "plantaardig eiwit"],
     },
     "soja": {
-        "triggers": ["soja", "tofu", "tempeh", "miso", "tamari", "edamame",
+        "triggers": ["soja", "tofu", "tofoe", "tahoe", "tempeh", "tempé", "natto", "miso", "tamari", "edamame", "kecap",
                      "sojamelk", "sojaroom", "sojasaus", "ketjap", "shoyu",
                      "teriyaki", "yakitori"],
-        "alt": "Kokos aminos (voor saus) of kikkererwten (voor tofu)",
+        "alt": "Kokos aminos (in sauzen) of kikkererwten (in gerechten)",
         "alt_map": {
-            "sojamelk":  "Havermelk (bijv. Oatly of Alpro Haver) of rijstmelk (bijv. Alpro Rice)",
-            "sojaroom":  "Haverroom (bijv. Oatly Kookroom of Alpro Haver Kookroom) of kokosroom",
-            "sojasaus":  "Kokos aminos (bijv. Coconut Secret) of glutenvrije tamari (controleer etiket)",
-            "ketjap":    "Kokos aminos (bijv. Coconut Secret of Big Tree Farms) als sojavrije ketjap-basis",
+            "sojamelk":  "Havermelk of rijstmelk",
+            "sojaroom":  "Haverroom of kokosroom",
+            "sojasaus":  "Kokos aminos",
+            "ketjap":    "Kokos aminos als sojavrije ketjap-basis",
             "tofu":      "Stevige blokjes bloemkool of kikkererwten",
             "tempeh":    "Gebakken kikkererwten of gedroogde linzen",
         },
@@ -222,20 +299,20 @@ ALLERGEN_MAP = {
             "sjalot":      "Fijngesneden venkel of bleekselderij",
             "sjalotten":   "Fijngesneden venkel of bleekselderij",
             "prei":        "Venkelstengels of courgettereepjes",
-            "bosui":       "Bieslook of het groene deel van prei (voor vergelijkbare milde smaak)",
-            "bosuitje":    "Bieslook of het groene deel van prei",
-            "lente-ui":    "Bieslook of het groene deel van prei",
-            "lenteui":     "Bieslook of het groene deel van prei",
+            "bosui":       "Bieslook (voor vergelijkbare milde smaak)",
+            "bosuitje":    "Bieslook",
+            "lente-ui":    "Bieslook",
+            "lenteui":     "Bieslook",
             "rode ui":     "Fijngesneden venkel of bleekselderij (rode biet voor kleur in salades)",
             "witte ui":    "Fijngesneden venkel of bleekselderij",
             "gele ui":     "Fijngesneden venkel of bleekselderij",
             "zilverui":    "Kleine kappertjes of ingelegde venkel als zoet-zuur alternatief",
             "uienpoeder":  "Asafoetida (snufje) of bleekselderijpoeder",
-            "uienpasta":   "Venkelpoeder of bleekselderijpasta (ui-vrij smaakmaker)",
-            "pesto":       "Zelfgemaakte pesto zonder knoflook/ui: basilicum, olie en pijnboompitten",
-            "groene pesto":"Zelfgemaakte pesto zonder knoflook/ui: basilicum, olie en pijnboompitten",
-            "rode pesto":  "Zelfgemaakte rode pesto van zongedroogde tomaten, olie en pijnboompitten (zonder knoflook/ui)",
-            "pestosaus":   "Zelfgemaakte pestosaus zonder knoflook/ui: basilicum, olie en pijnboompitten",
+            "uienpasta":   "Venkelpoeder of bleekselderijpasta",
+            "pesto":       "Zelfgemaakt van alleen basilicum, olie en pijnboompitten",
+            "groene pesto":"Zelfgemaakt van alleen basilicum, olie en pijnboompitten",
+            "rode pesto":  "Zelfgemaakt van alleen zongedroogde tomaten, olie en pijnboompitten",
+            "pestosaus":   "Zelfgemaakt van alleen basilicum, olie en pijnboompitten",
         },
         "exceptions": ["bloemui", "knoflookui"],
     },
@@ -275,14 +352,21 @@ ALLERGEN_MAP = {
             "dorade", "zeebrasem", "roodbaars",
             # Gerookt/gezouten
             "gerookte zalm", "gerookte makreel", "gerookte haring",
-            "bokking", "rollmops", "ansjovisfilet",
+            "bokking", "rollmops", "ansjovisfilet", "bottarga",
+            # Vaak vergeten
+            "tong", "poon", "sprot", "zeewolf", "zeeduivel", "kibbeling", "lekkerbek",
+            "surimi", "kaviaar", "kuit", "dashi", "bonito", "bonitovlokken", "katsuobushi",
+            "worcestersaus", "worcester",
             # Sauzen & pasta's met vis
             "vissaus", "worcestershiresaus", "anchovypasta", "anchovy",
         ],
+        # stokvis, tintelvis; inktvis is een weekdier
+        "heads": ["vis"],
+        "compound_skip": ("inkt", "pijlinkt"),
         "alt": "Stevige tofu, kikkererwten of jackfruit",
         "alt_map": {
             "vissaus":             "Kokos aminos of tamari + een stukje zeewier voor umami",
-            "worcestershiresaus":  "Veganistische worcestershiresaus (bijv. Henderson's Relish) of tamari",
+            "worcestershiresaus":  "Veganistische worcestershiresaus of tamari",
             "ansjovis":            "Kappertjes of gedroogde tomaten voor vergelijkbare umami-diepte",
             "ansjovisfilet":       "Kappertjes of gedroogde tomaten voor vergelijkbare umami-diepte",
             "anchovypasta":        "Kappertjespasta of miso-pasta voor zoute diepte",
@@ -302,7 +386,7 @@ ALLERGEN_MAP = {
         "alt_map": {
             "bleekselderij":  "Venkelstengels of kohlrabi voor vergelijkbare crunch en frisheid",
             "knolselderij":   "Pastinaak of kohlrabi (vergelijkbare aardse smaak en textuur)",
-            "selderijzaad":   "Venkelzaad of lavas (maggiplant) voor kruidige selderijsmaak",
+            "selderijzaad":   "Venkelzaad of lavas (maggiplant)",
             "selderijzout":   "Venkelzout of lavas-poeder met zeezout",
             "selderijpoeder": "Venkelpoeder of gedroogde lavas",
         },
@@ -331,9 +415,9 @@ ALLERGEN_MAP = {
             "sesam":        "Geroosterde zonnebloempitten of maanzaad als garnering",
             "sesamzaad":    "Geroosterde zonnebloempitten of maanzaad als garnering",
             "sesamolie":    "Geroosterde walnootolie of avocado-olie (rijke smaak zonder sesam)",
-            "tahini":       "Zonnebloemzaadpasta of pompoenpittpasta (sesamvrij, vergelijkbare romige basis)",
-            "tahin":        "Zonnebloemzaadpasta of pompoenpittpasta (sesamvrij, vergelijkbare romige basis)",
-            "sesampasta":   "Zonnebloemzaadpasta of pompoenpittpasta (sesamvrij)",
+            "tahini":       "Zonnebloemzaadpasta of pompoenpittpasta (vergelijkbare romige basis)",
+            "tahin":        "Zonnebloemzaadpasta of pompoenpittpasta (vergelijkbare romige basis)",
+            "sesampasta":   "Zonnebloemzaadpasta of pompoenpittpasta",
             "sesambrood":   "Brood zonder sesam (bijv. meerzadenbrood zonder sesam, controleer etiket)",
             "gomashio":     "Zeezout met geroosterde zonnebloempitten als sesamvrij kruidenzout",
             "halva":        "Zonnebloemhalva of dadel-notenspijs (controleer etiket op sesamvrij)",
@@ -366,7 +450,7 @@ ALLERGEN_MAP = {
             "lupinebloem":  "Rijstmeel of boekweitmeel (voor vergelijkbare textuur in bakken)",
             "lupinemeel":   "Rijstmeel of boekweitmeel (voor vergelijkbare textuur in bakken)",
             "lupinezaad":   "Kikkererwten of groene linzen (vergelijkbare eiwitrijke peulvrucht)",
-            "lupinepasta":  "Rijstpasta of kikkererwtenspasta (lupinevrij, eiwitrijk)",
+            "lupinepasta":  "Rijstpasta of kikkererwtenspasta (eiwitrijk)",
         },
         "exceptions": [],
     },
@@ -380,7 +464,7 @@ ALLERGEN_MAP = {
             "rode wijn":         "Granaatappelsap of druivensap (rood) als sulfietvrij alternatief",
             "witte wijn":        "Verjus of water met een extra kneepje citroensap (voor friszure diepte)",
             "porto":             "Granaatappelsap of sulfietvrije portostijl-druivensap",
-            "sherry":            "Appelsap of verjus voor droge sherryachtige smaak",
+            "sherry":            "Appelsap of verjus",
             "gedroogde abrikozen": "Verse abrikozen of sulfietvrije gedroogde abrikozen (onzwaveld, controleer etiket)",
             "rozijnen":          "Verse druiven (gehalveerd) of sulfietvrije rozijnen",
         },
@@ -565,13 +649,13 @@ _VLEES = [
     # Orgaanvlees & slachtafval
     "lever", "levertje",
     "nieren", "niertjes", "nier",
-    "hart", "hartje",
+    "runderhart", "kalfshart", "varkenshart", "kippenhart", "kippenhartjes", "eendenhart",
     "tong", "tongpunt",
     "zwezerik",
     "hersenen",
     "pens", "pensje",
-    "staart", "ossenstaart", "ossenstaartje",
-    "kop", "hoofdkaas",
+    "ossenstaart", "ossenstaartje",
+    "hoofdkaas",
     "mergpijp",
     # Verwerkte producten
     "schnitzel", "schnitzels", "schnitzeltje",
@@ -727,18 +811,28 @@ DIET_MAP = {
     "vegetarisch": {
         "triggers": _VLEES + _VIS + [
             "kippenbouillon", "runderbouillon", "vleesbouillon", "visbouillon",
+            "gelatine", "worcestersaus", "worcester", "kroepoek", "gyros",
+            "shoarma", "kebab", "döner", "carpaccio", "riblap", "riblappen",
+            "duivenborst", "dashi", "bonitovlokken", "surimi",
         ],
+        "heads": _VLEES_HEADS,
+        "compound_skip": PLANT_PREFIXES,
+        # geitenkaas en kippenei zijn geen vlees
+        "tail_exclude": DAIRY_TAILS,
         "alt": "Tofu, tempeh, jackfruit, seitan of peulvruchten",
         "alt_map": {
-            "kip":              "Vegan kipstuckjes (bijv. De Vegetarische Slager) of grote stukken oesterzwam",
-            "kipfilet":         "Vegan kipstuckjes (bijv. De Vegetarische Slager) of stevige blokjes tofu",
-            "kipfilets":        "Vegan kipstuckjes (bijv. De Vegetarische Slager) of stevige blokjes tofu",
-            "spek":             "Gerookte tofu-blokjes of vegan spekreepjes (bijv. Vivera of Valess)",
-            "spekreepjes":      "Gerookte tofu-blokjes of vegan spekreepjes (bijv. Vivera of Valess)",
-            "spekreepje":       "Gerookte tofu-blokjes of vegan spekreepje (bijv. Vivera of Valess)",
-            "kippenbouillon":   "Krachtige groentebouillon (bijv. Knorr Groente of zelfgetrokken van ui, wortel en selderij)",
+            "kip":              "Vegan kipstukjes of grote stukken oesterzwam",
+            "kipfilet":         "Vegan kipstukjes of stevige blokjes tofu",
+            "kipfilets":        "Vegan kipstukjes of stevige blokjes tofu",
+            "spek":             "Gerookte tofu-blokjes of vegan spekreepjes",
+            "spekreepjes":      "Gerookte tofu-blokjes of vegan spekreepjes",
+            "spekreepje":       "Gerookte tofu-blokjes of vegan spekreepje",
+            "kippenbouillon":   "Krachtige groentebouillon (of zelfgetrokken van ui, wortel en selderij)",
             "runderbouillon":   "Krachtige groentebouillon met een scheutje sojasaus voor diepte",
             "vleesbouillon":    "Groentebouillon versterkt met miso of sojasaus",
+            "gelatine":         "Agar-agar of pectine",
+            "worcestersaus":    "Vegetarische worcestersaus (zonder ansjovis) of sojasaus",
+            "worcester":        "Vegetarische worcestersaus (zonder ansjovis) of sojasaus",
             "garnalen":         "Koningsoesterzwammen (in schijfjes, voor vergelijkbare textuur) of vegan garnalen",
             "gamba":            "Koningsoesterzwammen of vegan garnalen",
             "gamba's":          "Koningsoesterzwammen of vegan garnalen",
@@ -751,76 +845,39 @@ DIET_MAP = {
         ],
     },
     "vegan": {
-        "triggers": _VLEES + _VIS + [
-            # Zuivel — generiek
-            "roomboter bladerdeeg", "boter bladerdeeg",
-            "melk", "room", "slagroom", "boter", "roomboter", "karnemelk",
-            "kaas", "kwark", "yoghurt", "ghee",
-            "crème fraîche", "creme fraiche",
-            "vla", "pudding", "custard", "ijs",
-            # Zachte kaassoorten
-            "mascarpone", "ricotta", "roomkaas", "burrata",
-            "brie", "camembert", "gorgonzola", "feta",
-            # Harde kaassoorten
-            "mozzarella", "parmezaan", "parmesan", "pecorino",
-            "cheddar", "gouda", "edam", "gruyère", "gruyere", "emmentaler",
-            # Ei & overig
-            "ei", "eieren", "eigeel", "eiwit", "mayonaise",
+        "triggers": _VLEES + _VIS + _ZUIVEL + _EI + [
             "honing", "gelatine",
-            # Bouillon op basis van vlees
-            "kippenbouillon", "runderbouillon", "vleesbouillon",
+            # Bouillon en sauzen op basis van vlees of vis
+            "kippenbouillon", "runderbouillon", "vleesbouillon", "visbouillon",
+            "worcestersaus", "worcester", "kroepoek", "gyros", "shoarma", "kebab",
+            "döner", "carpaccio", "riblap", "riblappen", "duivenborst", "dashi",
+            "bonitovlokken", "surimi",
         ],
+        "heads": _VLEES_HEADS + _ZUIVEL_HEADS + _EI_HEADS,
+        "head_exceptions": _ZUIVEL_HEAD_EXCEPTIONS,
+        "compound_skip": PLANT_PREFIXES,
         "alt": "Plantaardig alternatief (tofu, sojamelk, lijnzaad-ei, agave)",
+        # Zuivel: dezelfde vervangers als bij lactose, met hieronder alleen wat bij vegan anders is.
         "alt_map": {
-            "melk":          "Havermelk (bijv. Oatly of Alpro), sojamelk of amandelmelk",
-            "room":          "Kokosroom (bijv. Aroy-D) of haverroom (bijv. Oatly Kookroom)",
-            "slagroom":           "Kokosslagroom of plantaardige slagroom (bijv. Alpro of Oatly Haverroom)",
-            "boter":              "Plantaardige boter (bijv. Becel Plant-Based) of kokosolie",
-            "roomboter":          "Plantaardige boter (bijv. Becel Plant-Based) of kokosolie",
-            "roomboter bladerdeeg": "Plantaardig bladerdeeg (bijv. JUS-ROL of Tante Fanny)",
-            "boter bladerdeeg":   "Plantaardig bladerdeeg (bijv. JUS-ROL of Tante Fanny)",
-            "ghee":               "Kokosolie of plantaardige boter (bijv. Becel Plant-Based)",
-            "karnemelk":     "Sojamelk (bijv. Alpro) met een scheutje citroensap of azijn",
-            "crème fraîche": "Kokos crème fraîche of sojaroom (bijv. Alpro)",
-            "creme fraiche": "Kokos crème fraîche of sojaroom (bijv. Alpro)",
-            "vla":           "Sojavla (bijv. Alpro Soja Vla) of havervla",
-            "pudding":       "Sojapudding (bijv. Alpro) of kokospudding",
-            "custard":       "Sojacustard of kokoscustard",
-            "ijs":           "Kokosijs (bijv. So Delicious), sojaijs (bijv. Alpro) of haverijs",
-            "kaas":          "Vegane kaas (bijv. Violife of Daiya) of voedingsgist",
-            "roomkaas":      "Vegan roomkaas naturel op basis van soja of kokosolie (bijv. Oatly Spread of Violife)",
-            "mascarpone":    "Cashew-mascarpone (bijv. Violife of Nush) of soja-mascarpone",
-            "ricotta":       "Tofu-ricotta of vegane ricotta (bijv. Violife)",
-            "burrata":       "Vegane burrata (bijv. Violife) of cashew-burrata",
-            "brie":          "Vegane zachte kaas (bijv. Violife Soft White) of cashewkaas",
-            "camembert":     "Vegane zachte kaas (bijv. Violife Soft White) of cashewkaas",
-            "gorgonzola":    "Vegane blauwe kaas (bijv. Violife)",
-            "feta":          "Tofu-feta (tofu met citroensap en zout) of vegane feta (bijv. Violife)",
-            "mozzarella":    "Vegane mozzarella op basis van cashewnoten en rijst (bijv. MozzaRisella)",
-            "parmezaan":     "Edelgistvlokken of vegane parmezaan (bijv. Violife Prosociano)",
-            "parmesan":      "Edelgistvlokken of vegane parmezaan (bijv. Violife Prosociano)",
-            "kip":           "Vegan kipstuckjes (bijv. De Vegetarische Slager of Garden Gourmet) of oesterzwam",
-            "kipfilet":      "Vegan kipstuckjes (bijv. De Vegetarische Slager of Garden Gourmet) of stevige tofu",
-            "kipfilets":     "Vegan kipstuckjes (bijv. De Vegetarische Slager of Garden Gourmet) of stevige tofu",
-            "pecorino":      "Edelgistvlokken of vegane harde kaas (bijv. Violife Prosociano)",
-            "cheddar":       "Vegane harde kaas (bijv. Violife of Daiya) of voedingsgist",
-            "gouda":         "Vegane harde kaas (bijv. Violife of Daiya) of voedingsgist",
-            "edam":          "Vegane harde kaas (bijv. Violife of Daiya) of voedingsgist",
-            "gruyère":       "Vegane harde kaas (bijv. Violife of Daiya) of voedingsgist",
-            "gruyere":       "Vegane harde kaas (bijv. Violife of Daiya) of voedingsgist",
-            "emmentaler":    "Vegane harde kaas (bijv. Violife of Daiya) of voedingsgist",
-            "kwark":         "Sojakwark (bijv. Alpro Soja Kwark) of kokosmilk-kwark",
-            "yoghurt":       "Kokosyoghurt (bijv. The Coconut Collaborative) of sojamelkyoghurt (bijv. Alpro)",
+            **ALLERGEN_MAP["lactose"]["alt_map"],
+            "melk":          "Havermelk, sojamelk of amandelmelk",
+            "roomboter bladerdeeg": "Plantaardig bladerdeeg",
+            "boter bladerdeeg":   "Plantaardig bladerdeeg",
+            "ijs":           "Kokosijs, sojaijs of haverijs",
+            "roomkaas":      "Vegan roomkaas naturel op basis van soja of kokosolie",
+            "kip":           "Vegan kipstukjes of oesterzwam",
+            "kipfilet":      "Vegan kipstukjes of stevige tofu",
+            "kipfilets":     "Vegan kipstukjes of stevige tofu",
             "ei":            "Lijnzaad-ei (1 el lijnzaad + 3 el water) of aquafaba",
             "eieren":        "Lijnzaad-ei (1 el lijnzaad + 3 el water) of aquafaba",
             "eigeel":        "Aquafaba of soja-eigeel",
-            "eiwit":         "Aquafaba (opgeklopt voor meringue)",
-            "mayonaise":     "Vegane mayonaise (bijv. Hellmann's Vegan of Heinz Vegan)",
-            "honing":           "Agavesiroop (bijv. Whole Earth) of ahornsiroop",
-            "gelatine":         "Agar-agar (bijv. Dr. Oetker Agar-Agar)",
-            "gehakt":           "Vegan gehakt op basis van soja of erwten (bijv. Beyond Meat of De Vegetarische Slager) of linzenballetjes",
-            "rundergehakt":     "Vegan gehakt op basis van soja of erwten (bijv. Beyond Meat) of gekruide linzen",
-            "kippenbouillon":   "Krachtige groentebouillon (bijv. Knorr Groente of zelfgetrokken van ui, wortel en selderij)",
+            "eiwit":         "Aquafaba (stijfgeklopt)",
+            "mayonaise":     "Vegane mayonaise",
+            "honing":           "Agavesiroop of ahornsiroop",
+            "gelatine":         "Agar-agar",
+            "gehakt":           "Vegan gehakt op basis van soja of erwten of linzenballetjes",
+            "rundergehakt":     "Vegan gehakt op basis van soja of erwten of gekruide linzen",
+            "kippenbouillon":   "Krachtige groentebouillon (of zelfgetrokken van ui, wortel en selderij)",
             "runderbouillon":   "Krachtige groentebouillon met een scheutje sojasaus of miso voor diepte",
             "vleesbouillon":    "Groentebouillon versterkt met miso of sojasaus",
         },
@@ -859,7 +916,7 @@ DIET_MAP = {
             "fettuccine":   "Courgetti of palmini-linten",
             "lasagne":      "Plakken courgette of aubergine als lasagnebladen",
             "lasagnebladen":"Plakken courgette of aubergine als lasagnebladen",
-            "bloem":        "Amandelmeel of lupinemeel (niet geschikt voor alle recepten, bijv. niet voor pannenkoekbeslag met bloemkool)",
+            "bloem":        "Amandelmeel of lupinemeel (niet geschikt voor alle recepten)",
             "meel":         "Amandelmeel of kokosmeel",
             "mango":        "Avocado (voor romigheid) of kokoschunks (voor zoetheid)",
             "banaan":       "Avocado (in smoothies) of bevroren bloemkool met vanille",
@@ -881,9 +938,16 @@ DIET_MAP = {
             # Alcohol
             "alcohol", "wijn", "bier", "rum", "cognac", "whisky",
             "jenever", "port", "sherry", "marsala",
+            "mirin", "sake", "likeur", "amaretto", "wodka", "vodka", "gin",
+            "brandy", "calvados", "vermout", "prosecco", "champagne", "cava",
+            "cider", "kirsch", "limoncello", "tequila", "madeira",
             # Overig niet-halal
             "gelatine", "bloedworst",
         ],
+        # rijstwijn, kookwijn, witbier, sinaasappellikeur; gemberbier is fris
+        "heads": ["wijn", "likeur", "bier"],
+        "compound_skip": ("gember", "wortel"),
+        "tail_exclude": DAIRY_TAILS,
         "alt": "Halal-variant of plantaardige gelatine (agar-agar)",
         "alt_map": {
             "spek":       "Halal kippenspek of gerookte kalkoenreepjes",
@@ -893,15 +957,15 @@ DIET_MAP = {
             "prosciutto": "Halal kalkoenprosciutto of gerookte kipfiletplakken",
             "pancetta":   "Halal kalkoenspek of kippenspek",
             "worst":      "Halal worst (bijv. kalkoenrookworst of kipworst)",
-            "rookworst":  "Halal rookworst (bijv. kalkoenrookworst van Goede Gronden)",
+            "rookworst":  "Halal rookworst (bijv. kalkoenrookworst)",
             "knakworst":  "Halal knakworst van kip of kalkoen",
             "chorizo":    "Halal kippenchorizo of lamsworst met paprika en kruiden",
             "salami":     "Halal salami van kip of kalkoen",
-            "wijn":       "Alcoholvrije wijn (bijv. Freixenet 0.0 of Carl Jung) of druivensap",
-            "rode wijn":  "Alcoholvrije rode wijn (bijv. Torres Natureo of Carl Jung Rood) of granaatappelsap",
-            "witte wijn": "Alcoholvrije witte wijn (bijv. Freixenet 0.0 Blanc of Carl Jung Wit) of appelsap",
-            "bier":       "Alcoholvrij bier (bijv. Heineken 0.0 of Bavaria 0.0) of gevogeltebouillon",
-            "gelatine":   "Agar-agar (bijv. Dr. Oetker) of pectine (fruit)",
+            "wijn":       "Alcoholvrije wijn of druivensap",
+            "rode wijn":  "Alcoholvrije rode wijn of granaatappelsap",
+            "witte wijn": "Alcoholvrije witte wijn of appelsap",
+            "bier":       "Alcoholvrij bier of gevogeltebouillon",
+            "gelatine":   "Agar-agar of pectine (fruit)",
         },
         "exceptions": [],
     },
@@ -927,14 +991,14 @@ DIET_MAP = {
             "yoghurt":     "Kokosyoghurt (ongezoet) of cashew-yoghurt",
             "kaas":        "Cashewkaas of voedingsgist voor smaak",
             "kwark":       "Kokosyoghurt (dik, ongezoet) of cashewcrème",
-            "honing":      "Ahornsiroop of dattelstroop (in kleine hoeveelheden paleo)",
+            "honing":      "Ahornsiroop of dadelstroop (in kleine hoeveelheden paleo)",
             "suiker":      "Dadels, vijgen of ahornsiroop als natuurlijke zoetstof",
-            "pinda":       "Amandelen of walnoten (echte noten, paleo-proof)",
-            "pinda's":     "Gehakte amandelen of cashews (paleo-proof notenalternatief)",
+            "pinda":       "Amandelen of walnoten (echte noten)",
+            "pinda's":     "Gehakte amandelen of cashews (notenalternatief)",
             "pindakaas":   "Amandelboter of cashewpasta",
-            "soja":        "Kokos aminos (paleo-alternatief voor sojasaus)",
-            "sojasaus":    "Coconut Aminos (bijv. Coconut Secret of Big Tree Farms) als paleo-proof sojasausvervanger",
-            "ketjap":      "Coconut Aminos als zoete ketjap-basis (paleo-compliant)",
+            "soja":        "Kokos aminos",
+            "sojasaus":    "Coconut aminos als sojasausvervanger",
+            "ketjap":      "Kokos aminos",
             "bonen":       "Zoete aardappel of bloemkoolroosjes als vulling",
             "linzen":      "Fijngehakte paddenstoelen of zoete aardappel",
             "kikkererwten":"Bloemkool of pastinaak als vervanger in stoofgerechten",
@@ -965,42 +1029,42 @@ DIET_MAP = {
         "alt": "Lactosevrije zuivel, rijst, aardappel, wortel, courgette of spinazie",
         "alt_map": {
             "knoflook": "Knoflookolie (stukjes uitgezeefd) of een snufje Asafoetida (duivelsdrek)",
-            "ui":       "Alleen het groene gedeelte van bosui of verse bieslook (FODMAP-veilig)",
-            "uien":     "Alleen het groene gedeelte van bosui of verse bieslook (FODMAP-veilig)",
-            "uitje":    "Alleen het groene gedeelte van bosui of verse bieslook (FODMAP-veilig)",
-            "uitjes":   "Alleen het groene gedeelte van bosui of verse bieslook (FODMAP-veilig)",
-            "sjalot":   "Alleen het groene gedeelte van bosui of verse bieslook (FODMAP-veilig)",
-            "sjalotten":"Alleen het groene gedeelte van bosui of verse bieslook (FODMAP-veilig)",
-            "prei":           "De groene toppen van prei of bosui (FODMAP-veilig)",
-            "bosui":          "De groene toppen van bosui (FODMAP-veilig)",
+            "ui":       "Alleen het groene gedeelte van bosui of verse bieslook",
+            "uien":     "Alleen het groene gedeelte van bosui of verse bieslook",
+            "uitje":    "Alleen het groene gedeelte van bosui of verse bieslook",
+            "uitjes":   "Alleen het groene gedeelte van bosui of verse bieslook",
+            "sjalot":   "Alleen het groene gedeelte van bosui of verse bieslook",
+            "sjalotten":"Alleen het groene gedeelte van bosui of verse bieslook",
+            "prei":           "De groene toppen van prei of bosui",
+            "bosui":          "De groene toppen van bosui",
             "champignon":     "Oesterzwam of shiitake (lagere FODMAP-waarden in kleinere hoeveelheid)",
             "champignons":    "Oesterzwam of shiitake (lagere FODMAP-waarden in kleinere hoeveelheid)",
             "paddenstoel":    "Oesterzwam of shiitake (lagere FODMAP-waarden)",
             "paddenstoelen":  "Oesterzwam of shiitake (lagere FODMAP-waarden)",
-            "bloemkool":      "Broccoli of courgette (FODMAP-veilig)",
-            "avocado":        "Komkommer of courgette (FODMAP-veilig, voor vergelijkbare frisheid)",
-            "melk":           "Lactosevrije melk of havermelk (FODMAP-veilig)",
-            "yoghurt":        "Lactosevrije yoghurt of kokosyoghurt (FODMAP-veilig)",
+            "bloemkool":      "Broccoli of courgette",
+            "avocado":        "Komkommer of courgette (voor vergelijkbare frisheid)",
+            "melk":           "Lactosevrije melk of havermelk",
+            "yoghurt":        "Lactosevrije yoghurt of kokosyoghurt",
             "kwark":          "Lactosevrije kwark of kokosyoghurt (dik, ongezoet)",
             "slagroom":       "Lactosevrije slagroom of kokosslagroom",
             "ijs":            "Lactosevrij ijs of kokosijs",
-            "roomkaas":       "Lactosevrije roomkaas of harde kaas (bijv. parmezaan, is FODMAP-veilig)",
+            "roomkaas":       "Lactosevrije roomkaas of harde kaas (bijv. parmezaan)",
             "mascarpone":     "Lactosevrije mascarpone of cashew-mascarpone",
             "ricotta":        "Lactosevrije ricotta of tofu-ricotta",
-            "appel":          "Aardbeien, bosbessen of kiwi (FODMAP-veilig fruit)",
-            "peer":           "Sinaasappel of mandarijn (FODMAP-veilig)",
-            "mango":          "Papaja of ananas in kleine hoeveelheid (FODMAP-veilig)",
-            "watermeloen":    "Meloen (Cantaloupe/honingmeloen) of druiven (FODMAP-veilig)",
-            "kers":           "Bosbessen of aardbeien (FODMAP-veilig)",
-            "kersen":         "Bosbessen of aardbeien (FODMAP-veilig)",
-            "pruim":          "Druiven of aardbeien (FODMAP-veilig)",
-            "pruimen":        "Druiven of aardbeien (FODMAP-veilig)",
-            "honing":         "Ahornsiroop (FODMAP-veilig in kleine hoeveelheid) of rijststroop",
+            "appel":          "Aardbeien, bosbessen of kiwi",
+            "peer":           "Sinaasappel of mandarijn",
+            "mango":          "Papaja of ananas in kleine hoeveelheid",
+            "watermeloen":    "Meloen (Cantaloupe/honingmeloen) of druiven",
+            "kers":           "Bosbessen of aardbeien",
+            "kersen":         "Bosbessen of aardbeien",
+            "pruim":          "Druiven of aardbeien",
+            "pruimen":        "Druiven of aardbeien",
+            "honing":         "Ahornsiroop (in kleine hoeveelheid) of rijststroop",
             "zure room":      "Lactosevrije zure room of kokosroom met een scheutje citroensap",
-            "kaas":           "Harde kaas (bijv. parmezaan of belegen gouda — FODMAP-veilig) of lactosevrije kaas",
-            "bonen":          "Goed gespoelde kikkererwten uit blik (max. 42g) of groene boontjes",
-            "linzen":         "Groene of rode linzen goed doorkoken (kleine portie, max. 46g)",
-            "kikkererwten":   "Goed gespoelde kikkererwten uit blik (max. 42g per portie)",
+            "kaas":           "Harde kaas (bijv. parmezaan of belegen gouda) of lactosevrije kaas",
+            "bonen":          "Geen vaste vervanger bekend; welke peulvruchten passen verschilt per persoon",
+            "linzen":         "Geen vaste vervanger bekend; welke peulvruchten passen verschilt per persoon",
+            "kikkererwten":   "Geen vaste vervanger bekend; welke peulvruchten passen verschilt per persoon",
         },
         "exceptions": ["kokosmelk", "lactosevrij", "harde kaas",
                        "parmezaan", "cheddar"],
@@ -1020,15 +1084,15 @@ DIET_MAP = {
             "suiker":          "Erythritol (1:1 verhouding) of stevia (doseer voorzichtig, is zoeter)",
             "basterdsuiker":   "Erythritol of monkfruit-zoetstof",
             "poedersuiker":    "Fijngemalen erythritol of poederstevia",
-            "honing":          "Stevia-honing (bijv. Bihoney) of vloeibaar erythritol",
+            "honing":          "Stevia-honing of vloeibaar erythritol",
             "ahornsiroop":     "Suikervrije ahornsiroop of erythritol-siroop",
             "agave":           "Vloeibaar erythritol of stevia-druppels",
             "agavesiroop":     "Suikervrije ahornsiroop of vloeibaar erythritol",
-            "chocolade":       "Pure chocolade (90%+ cacao) of suikervrije chocolade (bijv. Cavalier)",
-            "chocola":         "Pure chocolade (90%+ cacao) of suikervrije chocolade (bijv. Cavalier)",
+            "chocolade":       "Pure chocolade (90%+ cacao) of suikervrije chocolade",
+            "chocola":         "Pure chocolade (90%+ cacao) of suikervrije chocolade",
             "nutella":         "Suikervrije hazelnootpasta of pindakaas zonder suiker",
             "jam":             "Suikervrije jam op basis van chia-zaad en stevia",
-            "gelei":           "Suikervrije gelei of jam van bessen met agar-agar",
+            "gelei":           "Suikervrije gelei of suikervrije jam",
             "frisdrank":       "Bruiswater met verse citroen of stevia-limonade",
             "limonade":        "Bruiswater met vers fruit of ongezoete kruidenthee",
             "stroop":          "Suikervrije siroop of erythritol-stroop",
@@ -1063,10 +1127,10 @@ DIET_MAP = {
         "alt_map": {
             "spek":        "Gerookte kalkoen-reepjes of koosjere runderspecialiteit (controleer hechsher)",
             "speklap":     "Gerookte kalkoen-reepjes of koosjere runderspecialiteit (controleer hechsher)",
-            "bacon":       "Koosjere runderbacon of kalkoenspek (bijv. Empire Kosher, controleer hechsher)",
+            "bacon":       "Koosjere runderbacon of kalkoenspek (controleer hechsher)",
             "ham":         "Koosjere kalkoenborstplakken of runderham (controleer hechsher)",
-            "worst":       "Koosjere worst van rund of kip (controleer hechsher, bijv. Empire Kosher)",
-            "rookworst":   "Runderrookworst (koosjer gecertificeerd) of vegan rookworst (bijv. Valess of Unox Vega)",
+            "worst":       "Koosjere worst van rund of kip (controleer hechsher)",
+            "rookworst":   "Runderrookworst (koosjer gecertificeerd) of vegan rookworst",
             "knakworst":   "Koosjere kip- of runderknakworst (controleer hechsher)",
             "garnalen":    "Kosjere vis (bijv. zalm of kabeljauw) of champignons als textuurvervanger",
             "kreeft":      "Kosjere vis (bijv. heilbot of zeebaars) of hartjes van palm",
@@ -1108,23 +1172,23 @@ DIET_MAP = {
             "penne":        "Courgette-stukjes of konjac-pasta",
             "fusilli":      "Courgetti of konjac-pasta",
             "rigatoni":     "Courgette-rollen (dikke plakken courgette) of Palmini (harten van palm)",
-            "tagliatelle":  "Courgetti of palmini-linten (Whole30-compliant)",
-            "fettuccine":   "Courgetti of palmini-linten (Whole30-compliant)",
+            "tagliatelle":  "Courgetti of palmini-linten",
+            "fettuccine":   "Courgetti of palmini-linten",
             "lasagne":      "Plakken courgette of aubergine als lasagnebladen",
             "lasagnebladen":"Plakken courgette of aubergine als lasagnebladen",
             "melk":         "Volvette kokosmelk (ongezoet) of amandelmelk",
-            "room":         "Kokosroom (bijv. Aroy-D) — Whole30-compliant",
+            "room":         "Kokosroom",
             "kaas":         "Voedingsgist voor smaak of cashewkaas",
-            "boter":        "Ghee (Whole30-compliant) of kokosolie",
-            "roomboter":    "Ghee (Whole30-compliant) of kokosolie",
+            "boter":        "Ghee of kokosolie",
+            "roomboter":    "Ghee of kokosolie",
             "mozzarella":   "Weglaten of vervangen door cashewcrème (romige textuur zonder zuivel)",
             "parmezaan":    "Voedingsgist of gehakte cashews/walnoten voor hartige diepte",
             "bloem":        "Arrowroot als bindmiddel of amandelmeel voor bakken",
             "meel":         "Arrowroot als bindmiddel of kokosmeel",
-            "honing":       "Dadelpasta of ahornsiroop — Whole30-compliant in kleine hoeveelheid",
+            "honing":       "Geen zoetmiddel binnen Whole30; laat weg of zoet met fruit",
             "suiker":       "Gedroogde dadels of rijpe banaan als natuurlijke zoetstof",
-            "ahornsiroop":  "Weglaten of een kleine hoeveelheid dadelpasta",
-            "wijn":         "Kippenbouillon of druivensap (alcohol-vrij) voor diepte",
+            "ahornsiroop":  "Geen zoetmiddel binnen Whole30; laat weg of zoet met fruit",
+            "wijn":         "Kippenbouillon of druivensap",
         },
         "exceptions": ["ghee", "kokosmelk", "kokosroom", "kokosboter",
                        "amandelmelk", "havermelk"],
@@ -1135,8 +1199,9 @@ DIET_MAP = {
 
 class AnalyzeRequest(BaseModel):
     url: HttpUrl
-    user_allergies: list[str]
-    user_diets: list[str] = []
+    # Ruim boven het aantal keuzes dat bestaat; alles daarboven is geen gewone aanvraag.
+    user_allergies: list[str] = Field(max_length=40)
+    user_diets: list[str] = Field(default=[], max_length=40)
 
 class IngredientResult(BaseModel):
     original: str
@@ -1144,63 +1209,34 @@ class IngredientResult(BaseModel):
     matched_allergen: str | None
     alternative: str | None
     issue_type: str | None = None  # "allergie" | "dieet"
+    # Hoeveelheid uit het recept, bijv. "300 g" (None als er geen getal staat)
+    quantity: str | None = None
+    amount: float | None = None
+    unit: str | None = None
+    name: str | None = None
+    # Hoeveelheid van de vervanger, bijv. "300 g" of "2 el lijnzaad + 6 el water"
+    alternative_quantity: str | None = None
+    ratio: str | None = None          # bijv. "1 : 1"
+    quantity_note: str | None = None  # toelichting, of dat er geen vaste verhouding is
+    # Andere gekozen allergieën/diëten waar dit ingrediënt ook onder valt
+    also_matched: list[str] = []
+    # Gekozen allergieën/diëten waar de vervanger zelf mogelijk niet bij past
+    alternative_conflicts: list[str] = []
+    conflict_note: str | None = None
 
 class AnalyzeResponse(BaseModel):
     recipe_title: str
+    servings: str | None = None
+    image: str | None = None  # adres van de receptfoto op de bronsite (og:image), niet gekopieerd
     total_ingredients: int
     unsafe_count: int
     ingredients: list[IngredientResult]
 
 # ── Samengestelde-woorden valse positieven ───────────────────────────────────
-# Woorden die beginnen met een trigger maar geen vlees/vis zijn.
-# Gebruikt bij de prefix-match om valse positieven te filteren.
+# ── Zoekpatronen één keer opbouwen bij het starten ───────────────────────────
 
-_COMPOUND_FP = {
-    # bot (vis) → boter, boterham, boterbloem
-    "boter", "roomboter", "kokosboter", "plantaardige boter",
-    "boterham", "boterhammen", "boterbloem",
-    # rog (vis) → rogge, roggebrood
-    "rogge", "roggebrood", "roggebloem",
-    # aal (vis) → aalbes, aalbessen (bessen/fruit)
-    "aalbes", "aalbessen", "aalbessensap",
-    # kop (orgaanvlees) → kopje/kopjes (maateenheid)
-    "kopje", "kopjes",
-    # pos (vis) → postelein (groente)
-    "postelein",
-    # wild (wild) → wilde (bijvoeglijk naamwoord: wilde rucola, wilde knoflook)
-    "wilde",
-    # hart (orgaanvlees) → hartig/hartige (bijvoeglijk naamwoord: hartige taart)
-    "hartig", "hartige",
-    # harder (vis) → harder (vergrotende trap bijvoeglijk naamwoord)
-    "harder",
-    # lam (lam) → lamp, lampen
-    "lamp", "lampen",
-}
-
-# ── Pre-compile regex patterns at startup ────────────────────────────────────
-
-def _compile_mapping(mapping: dict) -> dict:
-    """Add pre-compiled regex patterns and exception set to a mapping entry."""
-    triggers = mapping["triggers"]
-    sorted_triggers = sorted(triggers, key=len, reverse=True)
-    escaped = [re.escape(t) for t in sorted_triggers]
-
-    # Patroon 1: exact woordgrens aan beide kanten (geen valse positieven)
-    pattern = re.compile(
-        r"\b(" + "|".join(escaped) + r")\b",
-        re.IGNORECASE,
-    )
-    # Patroon 2: alleen linker woordgrens (vangt samenstellingen zoals "kipreepjes")
-    prefix_pattern = re.compile(
-        r"\b(" + "|".join(escaped) + r")",
-        re.IGNORECASE,
-    )
-    exceptions = set(mapping.get("exceptions", []))
-    return {**mapping, "_pattern": pattern, "_prefix_pattern": prefix_pattern,
-            "_exceptions": exceptions}
-
-ALLERGEN_MAP = {k: _compile_mapping(v) for k, v in ALLERGEN_MAP.items()}
-DIET_MAP     = {k: _compile_mapping(v) for k, v in DIET_MAP.items()}
+ALLERGEN_MAP = {k: compile_mapping(k, v) for k, v in ALLERGEN_MAP.items()}
+DIET_MAP     = {k: compile_mapping(k, v) for k, v in DIET_MAP.items()}
 
 # ── Allergen checking ────────────────────────────────────────────────────────
 
@@ -1208,29 +1244,7 @@ def _normalize(text: str) -> str:
     return text.lower().strip()
 
 
-def _find_trigger(normalized: str, mapping: dict) -> str | None:
-    """Twee stappen: eerst exacte woordgrens-match, dan prefix-match voor samenstellingen."""
-    if any(exc in normalized for exc in mapping["_exceptions"]):
-        return None
-
-    # Stap 1: exacte match (bijv. "kip", "zalm")
-    m = mapping["_pattern"].search(normalized)
-    if m:
-        return m.group(1).lower()
-
-    # Stap 2: prefix-match voor samengestelde woorden (bijv. "kipreepjes", "zalmstukjes")
-    m = mapping["_prefix_pattern"].search(normalized)
-    if m:
-        # Extraheer het volledige samengestelde woord om valse positieven te filteren
-        i = m.end()
-        while i < len(normalized) and (normalized[i].isalpha() or normalized[i] in "-'"):
-            i += 1
-        full_word = normalized[m.start():i]
-        if full_word in _COMPOUND_FP:
-            return None
-        return m.group(1).lower()
-
-    return None
+_ALL_MAPS = {**ALLERGEN_MAP, **DIET_MAP}
 
 
 def _get_alternative(trigger: str, mapping: dict) -> str:
@@ -1238,84 +1252,126 @@ def _get_alternative(trigger: str, mapping: dict) -> str:
     return mapping.get("alt_map", {}).get(trigger, mapping["alt"])
 
 
+def alternative_conflicts(alternative: str, categories: list[str]) -> list[str]:
+    """Welke van deze allergieën en diëten botsen met de tekst van een vervanger?"""
+    normalized = _normalize(alternative)
+    return [
+        category for category in categories
+        if find_trigger(normalized, _ALL_MAPS[category], substitute=True)
+    ]
+
+
+def _conflict_note(conflicts: list[str]) -> str | None:
+    if not conflicts:
+        return None
+    names = conflicts[0] if len(conflicts) == 1 else ", ".join(conflicts[:-1]) + " en " + conflicts[-1]
+    return f"Let op: deze vervanger past mogelijk niet bij {names}. Kies een optie die bij al je keuzes past."
+
+
 def check_ingredient(
     ingredient: str,
     user_allergies: list[str],
-    user_diets: list[str] = [],
+    user_diets: list[str] | None = None,
 ) -> IngredientResult:
     normalized = _normalize(ingredient)
+    parsed = parse_ingredient(ingredient)
+    quantity = {
+        "quantity": parsed.text,
+        "amount": parsed.amount,
+        "unit": parsed.unit,
+        "name": parsed.name,
+    }
 
-    for allergen in user_allergies:
-        allergen = allergen.lower()
-        if allergen not in ALLERGEN_MAP:
-            continue
-        trigger = _find_trigger(normalized, ALLERGEN_MAP[allergen])
+    # Alle keuzes nalopen, niet stoppen bij de eerste: allergieën gaan voor diëten.
+    selected = [
+        (category.lower(), mapping_set, issue_type)
+        for categories, mapping_set, issue_type in (
+            (user_allergies, ALLERGEN_MAP, "allergie"),
+            (user_diets or [], DIET_MAP, "dieet"),
+        )
+        for category in categories
+        if category.lower() in mapping_set
+    ]
+    matches = []
+    for category, mapping_set, issue_type in selected:
+        trigger = find_trigger(normalized, mapping_set[category])
         if trigger:
-            return IngredientResult(
-                original=ingredient,
-                is_unsafe=True,
-                matched_allergen=allergen,
-                alternative=_get_alternative(trigger, ALLERGEN_MAP[allergen]),
-                issue_type="allergie",
-            )
+            matches.append((category, mapping_set[category], trigger, issue_type))
 
-    for diet in user_diets:
-        diet = diet.lower()
-        if diet not in DIET_MAP:
-            continue
-        trigger = _find_trigger(normalized, DIET_MAP[diet])
-        if trigger:
-            return IngredientResult(
-                original=ingredient,
-                is_unsafe=True,
-                matched_allergen=diet,
-                alternative=_get_alternative(trigger, DIET_MAP[diet]),
-                issue_type="dieet",
-            )
+    if not matches:
+        return IngredientResult(
+            original=ingredient,
+            is_unsafe=False,
+            matched_allergen=None,
+            alternative=None,
+            **quantity,
+        )
+
+    category, mapping, trigger, issue_type = matches[0]
+    alternative = _get_alternative(trigger, mapping)
+    amount = alternative_amount(category, trigger, parsed)
+    # De vervanger komt uit de lijst van de eerste treffer; past hij ook bij de rest?
+    others = [name for name, _, _ in selected if name != category]
+    conflicts = alternative_conflicts(alternative, others)
 
     return IngredientResult(
         original=ingredient,
-        is_unsafe=False,
-        matched_allergen=None,
-        alternative=None,
+        is_unsafe=True,
+        matched_allergen=category,
+        also_matched=[name for name, _, _, _ in matches[1:]],
+        alternative=alternative,
+        alternative_conflicts=conflicts,
+        conflict_note=_conflict_note(conflicts),
+        issue_type=issue_type,
+        alternative_quantity=amount.quantity,
+        ratio=amount.ratio,
+        quantity_note=amount.note,
+        **quantity,
     )
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
-async def fetch_html(url: str) -> str:
-    async with CurlSession(impersonate="chrome131") as session:
-        response = await session.get(url, allow_redirects=True, timeout=15)
+# Rem op misbruik: per adres een maximum aantal analyses per minuut (RATE_LIMIT_PER_MINUTE, 0 = uit).
+# De WordPress-site komt van één adres en heeft zelf al een limiet per bezoeker; vandaar ruim.
+_rate_limiter = RateLimiter(int(os.getenv("RATE_LIMIT_PER_MINUTE", "120")))
 
-    if response.status_code == 403 and SCRAPINGBEE_API_KEY:
-        async with httpx.AsyncClient() as client:
-            sb = await client.get(
-                "https://app.scrapingbee.com/api/v1/",
-                params={"api_key": SCRAPINGBEE_API_KEY, "url": url, "render_js": "false"},
-                timeout=30,
-            )
-        if sb.status_code >= 400:
-            raise HTTPException(status_code=502, detail=f"Website gaf fout {sb.status_code} terug.")
-        return sb.text
 
-    if response.status_code >= 400:
-        raise HTTPException(status_code=502, detail=f"Website gaf fout {response.status_code} terug.")
-
-    return response.text
+def _client_ip(request: Request) -> str:
+    """Het adres van de aanvrager. Achter de proxy van de hoster staat dat in X-Forwarded-For."""
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[-1].strip()
+    return request.client.host if request.client else "onbekend"
 
 
 # ── Endpoint ─────────────────────────────────────────────────────────────────
 
+def recipe_image_url(value: object, page_url: str) -> str | None:
+    """Het adres van de receptfoto, of None als het geen gewone http(s)-link is.
+
+    De engine haalt de foto zelf niet op: de browser van de bezoeker laadt hem van de bronsite.
+    """
+    if not isinstance(value, str) or not value.strip():
+        return None
+    absolute = urljoin(page_url, value.strip())
+    parts = urlsplit(absolute)
+    if parts.scheme not in ("http", "https") or not parts.hostname or len(absolute) > 2000:
+        return None
+    return absolute
+
+
 @app.post("/analyze", response_model=AnalyzeResponse)
-async def analyze_recipe(body: AnalyzeRequest):
+async def analyze_recipe(body: AnalyzeRequest, request: Request):
     url = str(body.url)
 
+    if not _rate_limiter.allow(_client_ip(request)):
+        raise HTTPException(status_code=429, detail="Te veel aanvragen. Probeer het over een minuut nog eens.")
+
     try:
-        html = await fetch_html(url)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Kon URL niet bereiken: {exc}")
+        html = await fetch_html(url, scrapingbee_key=SCRAPINGBEE_API_KEY)
+    except FetchError as error:
+        raise HTTPException(status_code=error.status, detail=error.message)
 
     try:
         scraper = scrape_html(html=html, org_url=url, supported_only=False)
@@ -1326,12 +1382,13 @@ async def analyze_recipe(body: AnalyzeRequest):
             status_code=422,
             detail="Kon geen recept-schema vinden op deze pagina.",
         )
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Fout bij verwerken recept: {exc}")
+    except Exception:  # noqa: BLE001 - de scraper kan van alles gooien
+        # Geen technische details naar buiten.
+        raise HTTPException(status_code=422, detail="Kon geen recept-schema vinden op deze pagina.")
 
     try:
         raw_ingredients: list[str] = scraper.ingredients()
-    except Exception:
+    except Exception:  # noqa: BLE001 - de scraper kan van alles gooien
         raise HTTPException(
             status_code=422, detail="Ingrediëntenlijst kon niet worden uitgelezen."
         )
@@ -1341,14 +1398,26 @@ async def analyze_recipe(body: AnalyzeRequest):
 
     try:
         title = scraper.title() or "Onbekend recept"
-    except Exception:
+    except Exception:  # noqa: BLE001 - de scraper kan van alles gooien
         title = "Onbekend recept"
+
+    try:
+        servings = scraper.yields() or None
+    except Exception:  # noqa: BLE001 - de scraper kan van alles gooien
+        servings = None
+
+    try:
+        image = recipe_image_url(scraper.image(), url)
+    except Exception:  # noqa: BLE001 - de scraper kan van alles gooien
+        image = None
 
     results = [check_ingredient(ing, body.user_allergies, body.user_diets) for ing in raw_ingredients]
     unsafe_count = sum(1 for r in results if r.is_unsafe)
 
     return AnalyzeResponse(
         recipe_title=title,
+        servings=servings,
+        image=image,
         total_ingredients=len(results),
         unsafe_count=unsafe_count,
         ingredients=results,
