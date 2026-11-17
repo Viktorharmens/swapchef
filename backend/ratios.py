@@ -68,6 +68,7 @@ RATIOS: dict[str, dict] = {
         "same": ["mayonaise", "mayo"],
         "per_piece": {"ei": _LIJNZAAD_EI, "eieren": _LIJNZAAD_EI},
     },
+    "ui": {"same": ["bouillon"]},
     "soja": {"same": ["sojamelk", "sojaroom", "sojasaus", "ketjap"]},
     "sesam": {"same": ["sesam", "sesamzaad", "sesamolie", "tahini", "tahin", "sesampasta"]},
     "lupine": {"same": ["lupinepasta"]},

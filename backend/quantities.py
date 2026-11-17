@@ -3,7 +3,8 @@
 "300 g penne"            -> 300, "g", "penne"
 "1½ el olijfolie"        -> 1.5, "el", "olijfolie"
 "2-3 tenen knoflook"     -> 2 t/m 3, "teen", "knoflook"
-"snufje zout"            -> geen getal, "snufje zout"
+"snufje zout"            -> geen getal, "snuf", "zout"
+"peper en zout"          -> geen getal, "peper en zout"
 """
 
 from __future__ import annotations
@@ -40,6 +41,9 @@ _UNITS = {
     "glas": "glas", "glazen": "glas",
     "vel": "vel", "vellen": "vel",
     "blaadje": "blaadje", "blaadjes": "blaadje",
+    "blokje": "blokje", "blokjes": "blokje",
+    "blok": "blok", "blokken": "blok",
+    "tablet": "tablet", "tabletten": "tablet", "tabletje": "tablet",
 }
 
 _FRACTIONS = {
@@ -65,6 +69,10 @@ _AMOUNT_RE = re.compile(
     re.IGNORECASE,
 )
 _UNIT_RE = re.compile(r"^(?P<unit>[^\W\d_]+)\.?(?=\s|$)\s*(?P<rest>.*)$")
+# Een maat zonder getal: "snufje komijn", "een scheutje olie". Alleen maten die
+# ook zonder getal een hoeveelheid zijn; "blokjes kaas" of "pot pesto" niet.
+_BARE_UNITS = frozenset({"snuf", "mespunt", "scheut", "handje", "takje", "bos", "blaadje"})
+_BARE_UNIT_RE = re.compile(r"^(?P<text>(?:een\s+)?(?P<unit>[^\W\d_]+))\s+(?P<rest>\S.*)$", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -100,6 +108,10 @@ def parse_ingredient(line: str) -> Parsed:
     line = " ".join(line.split())
     m = _AMOUNT_RE.match(line)
     if not m:
+        bare = _BARE_UNIT_RE.match(line)
+        unit = _UNITS.get(bare.group("unit").lower()) if bare else None
+        if unit in _BARE_UNITS:
+            return Parsed(None, None, unit, bare.group("text"), bare.group("rest"))
         return Parsed(None, None, None, None, line)
 
     amount = _to_number(m.group("first"))

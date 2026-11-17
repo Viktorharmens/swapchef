@@ -143,3 +143,23 @@ def test_conflicten_los():
 
 def test_onbekende_keuze_wordt_genegeerd():
     assert not check_ingredient("100 g kaas", ["bestaat-niet"], ["ook-niet"]).is_unsafe
+
+
+# ── Keukengerei ──────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("name", [
+    "Taartvorm (28 cm)", "Bakpapier", "springvorm van 24 cm", "extra bakpapier",
+    "Optioneel: houten prikkers", "12 muffinvormpjes", "keukentouw",
+])
+def test_keukengerei(name):
+    from matching import is_equipment
+    assert is_equipment(name)
+
+
+@pytest.mark.parametrize("name", [
+    "boter (om de taartvorm in te vetten)", "boter voor de ovenschaal", "appels (geschild)",
+    "kipfilet", "bloem", "vormkaas", "", "zout",
+])
+def test_geen_keukengerei(name):
+    from matching import is_equipment
+    assert not is_equipment(name)

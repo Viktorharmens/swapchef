@@ -16,6 +16,7 @@ from matching import (
     PLANT_PREFIXES,
     compile_mapping,
     find_trigger,
+    is_equipment,
 )
 from quantities import parse_ingredient
 from rate_limit import RateLimiter
@@ -289,7 +290,11 @@ ALLERGEN_MAP = {
                      "bosui", "bosuitje", "lente-ui", "lenteui", "prei",
                      "rode ui", "witte ui", "gele ui", "zilverui",
                      "uienpoeder", "uienpasta",
-                     "pesto", "groene pesto", "rode pesto", "pestosaus"],
+                     "pesto", "groene pesto", "rode pesto", "pestosaus",
+                     # Bouillon uit een blokje, poeder of pot bevat meestal ui.
+                     "bouillon"],
+        # kippenbouillon, groentebouillon
+        "heads": ["bouillon"],
         "alt": "Venkel of bleekselderij (voor bite), bieslook (als topping)",
         "alt_map": {
             "ui":          "Fijngesneden venkel of bleekselderij (voor bite en zoetheid)",
@@ -313,6 +318,7 @@ ALLERGEN_MAP = {
             "groene pesto":"Zelfgemaakt van alleen basilicum, olie en pijnboompitten",
             "rode pesto":  "Zelfgemaakt van alleen zongedroogde tomaten, olie en pijnboompitten",
             "pestosaus":   "Zelfgemaakt van alleen basilicum, olie en pijnboompitten",
+            "bouillon":    "Uivrije groentebouillon (lees het etiket) of zelfgetrokken zonder ui",
         },
         "exceptions": ["bloemui", "knoflookui"],
     },
@@ -1412,6 +1418,9 @@ async def analyze_recipe(body: AnalyzeRequest, request: Request):
         image = None
 
     results = [check_ingredient(ing, body.user_allergies, body.user_diets) for ing in raw_ingredients]
+    # Bakpapier en taartvormen staan soms tussen de ingrediënten. Een regel waar
+    # een allergie of dieet op aanslaat blijft altijd staan.
+    results = [r for r in results if r.is_unsafe or not is_equipment(r.name or r.original)]
     unsafe_count = sum(1 for r in results if r.is_unsafe)
 
     return AnalyzeResponse(

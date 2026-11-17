@@ -318,3 +318,38 @@ def find_trigger(normalized: str, mapping: dict, *, substitute: bool = False) ->
                         break
                     return head
     return None
+
+
+# ── Keukengerei ──────────────────────────────────────────────────────────────
+
+# Sommige recepten zetten bakpapier of de taartvorm tussen de ingrediënten.
+_EQUIPMENT = frozenset({
+    "bakpapier", "bakpapiertje", "aluminiumfolie", "alufolie", "huishoudfolie",
+    "vershoudfolie", "plasticfolie", "keukenpapier", "keukentouw", "rolladetouw",
+    "bakblik", "bakplaat", "bakrooster", "ovenschaal", "braadslede", "spuitzak",
+    "deegroller", "staafmixer", "keukenmachine", "blender", "mixer",
+    "satéprikkers", "sateprikkers", "satéstokjes", "satestokjes",
+    "cocktailprikkers", "prikkers", "spiesen", "tandenstokers",
+    "muffinvormpjes", "cupcakevormpjes", "papieren vormpjes",
+})
+_EQUIPMENT_ENDINGS = ("vorm", "vormen", "vormpje", "vormpjes")
+# Woorden die ervoor mogen staan: "optioneel: houten prikkers", "extra bakpapier".
+_EQUIPMENT_LEAD = frozenset({
+    "optioneel", "extra", "eventueel", "evt", "een", "vel", "vellen", "stuk",
+    "houten", "ronde", "rond", "grote", "kleine", "lage", "hoge", "vierkante",
+    "ingevette", "siliconen", "papieren",
+})
+
+
+def is_equipment(name: str) -> bool:
+    """Is deze regel keukengerei in plaats van een ingrediënt?
+
+    Kijkt alleen naar het eerste woord dat ertoe doet: "boter voor de taartvorm"
+    blijft boter.
+    """
+    text = re.sub(r"\([^)]*\)", " ", name.lower())
+    for word in _WORD_RE.findall(text):
+        if word in _EQUIPMENT_LEAD:
+            continue
+        return word in _EQUIPMENT or word.endswith(_EQUIPMENT_ENDINGS)
+    return False

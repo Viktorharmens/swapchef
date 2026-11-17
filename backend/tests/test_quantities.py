@@ -24,6 +24,8 @@ from ratios import RATIOS
     ("ca. 100 gram spek", 100, None, "g", "ca. 100 gram", "spek"),
     ("1 blik (400 g) tomatenblokjes", 1, None, "blik", "1 blik", "(400 g) tomatenblokjes"),
     ("1 l melk", 1, None, "l", "1 l", "melk"),
+    ("0.5 blokje kippenbouillon", 0.5, None, "blokje", "0.5 blokje", "kippenbouillon"),
+    ("2 bouillontabletten", 2, None, None, "2", "bouillontabletten"),
 ])
 def test_parse(line, amount, amount_max, unit, text, name):
     p = parse_ingredient(line)
@@ -32,7 +34,19 @@ def test_parse(line, amount, amount_max, unit, text, name):
     assert (p.unit, p.text, p.name) == (unit, text, name)
 
 
-@pytest.mark.parametrize("line", ["snufje zout", "peper en zout", "sap van 1 citroen", "verse basilicum"])
+@pytest.mark.parametrize("line, unit, text, name", [
+    ("snufje komijn", "snuf", "snufje", "komijn"),
+    ("Snufje zout", "snuf", "Snufje", "zout"),
+    ("een scheutje olijfolie", "scheut", "een scheutje", "olijfolie"),
+    ("handje verse basilicum", "handje", "handje", "verse basilicum"),
+])
+def test_parse_maat_zonder_getal(line, unit, text, name):
+    p = parse_ingredient(line)
+    assert p.amount is None
+    assert (p.unit, p.text, p.name) == (unit, text, name)
+
+
+@pytest.mark.parametrize("line", ["peper en zout", "sap van 1 citroen", "verse basilicum", "blokjes kaas", "pot pesto", "el olie"])
 def test_parse_zonder_getal(line):
     p = parse_ingredient(line)
     assert p.amount is None and p.text is None
