@@ -494,6 +494,7 @@ export default function RecipeAnalyzer() {
               {result.recipe_title}
             </h2>
             <div className="mt-1 flex gap-4 text-base text-gray-500">
+              {result.servings && <span>{result.servings}</span>}
               <span>{result.total_ingredients} ingrediënten</span>
               {result.unsafe_count > 0 ? (
                 <span className="font-medium text-red-600">
@@ -525,8 +526,12 @@ export default function RecipeAnalyzer() {
                       </div>
                       <div className="mt-2 rounded-xl bg-green-100 px-3 py-2 text-sm font-semibold text-green-800 flex items-center justify-between gap-2">
                         <span>✔ {ing.alternative}</span>
-                        <AddButton text={ing.alternative} list={shoppingList} onAdd={addToList} />
+                        <AddButton text={shoppingText(ing)} list={shoppingList} onAdd={addToList} />
                       </div>
+                      <AmountLine ing={ing} />
+                      {ing.conflict_note && (
+                        <p className="mt-1.5 px-1 text-sm font-medium text-red-700">{ing.conflict_note}</p>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -678,6 +683,31 @@ function PrivacyContent() {
       </p>
       <p className="mt-4 text-xs text-gray-400">Laatst bijgewerkt: maart 2026</p>
     </div>
+  );
+}
+
+// Tekst voor de boodschappenlijst: de hoeveelheid erbij als die bekend is.
+function shoppingText(ing) {
+  return ing.alternative_quantity
+    ? `${ing.alternative_quantity}: ${ing.alternative}`
+    : ing.alternative;
+}
+
+// Hoeveelheid van de vervanger, of de melding dat er geen vaste verhouding is.
+function AmountLine({ ing }) {
+  const amount = ing.alternative_quantity
+    ? `${ing.alternative_quantity}${ing.ratio ? ` (${ing.ratio})` : ""}`
+    : ing.ratio
+    ? `zelfde hoeveelheid (${ing.ratio})`
+    : null;
+  if (!amount && !ing.quantity_note) return null;
+  return (
+    <p className="mt-1.5 px-1 text-sm text-gray-600">
+      <span className="font-semibold text-gray-800">Hoeveelheid: </span>
+      {amount}
+      {amount && ing.quantity_note ? ". " : ""}
+      {ing.quantity_note}
+    </p>
   );
 }
 
