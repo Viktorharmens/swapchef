@@ -128,9 +128,15 @@ def test_geen_vaste_verhouding_wordt_eerlijk_gemeld():
     assert r.quantity_note == "Geen vaste verhouding bekend."
 
 def test_zonder_getal_blijft_de_verhouding_staan():
-    r = check_ingredient("scheutje melk", ["lactose"], [])
+    r = check_ingredient("melk naar smaak", ["lactose"], [])
     assert r.quantity is None
     assert r.alternative_quantity is None
+    assert r.ratio == "1 : 1"
+
+def test_maat_zonder_getal_gaat_mee_naar_de_vervanger():
+    r = check_ingredient("scheutje melk", ["lactose"], [])
+    assert r.quantity == "scheutje"
+    assert r.alternative_quantity == "scheutje"
     assert r.ratio == "1 : 1"
 
 def test_sojasaus_krijgt_geen_tamari_bij_soja_allergie():
@@ -152,3 +158,39 @@ def test_bloem_na_bloemkool_wordt_nog_gevonden():
 def test_reepjes_is_geen_ree():
     assert not check_ingredient("1 rode ui, in dunne reepjes", [], ["vegetarisch"]).is_unsafe
     assert check_ingredient("300 g kipreepjes", [], ["vegetarisch"]).is_unsafe
+
+
+# ── Bouillon bij een ui-allergie ──────────────────────────────────────────────
+
+def test_ui_bouillonblokje():
+    r = check_ingredient("0.5 blokje kippenbouillon", ["ui"], ["vegan"])
+    assert r.is_unsafe
+    assert r.matched_allergen == "ui"
+    assert r.also_matched == ["vegan"]
+    assert "uivrije groentebouillon" in r.alternative.lower()
+    assert r.alternative_quantity == "0.5 blokje"
+    assert r.alternative_conflicts == []
+
+
+def test_ui_bouillon_in_andere_vormen():
+    for line in ("500 ml groentebouillon", "1 bouillonblokje", "2 tl bouillonpoeder", "bouillon"):
+        assert check_ingredient(line, ["ui"], []).is_unsafe, line
+
+
+def test_bouillon_alleen_bij_ui():
+    assert not check_ingredient("500 ml groentebouillon", ["knoflook", "gluten"], []).is_unsafe
+
+
+def test_blokje_blijft_bij_de_hoeveelheid():
+    r = check_ingredient("0.5 blokje kippenbouillon", [], ["vegan"])
+    assert r.alternative_quantity == "0.5 blokje"
+    assert r.unit == "blokje" and r.name == "kippenbouillon"
+
+
+def test_snufje_zonder_getal():
+    r = check_ingredient("snufje komijn", [], [])
+    assert (r.quantity, r.unit, r.name) == ("snufje", "snuf", "komijn")
+
+
+def test_uivrije_bouillon_is_goed():
+    assert not check_ingredient("500 ml uivrije bouillon", ["ui"], []).is_unsafe
